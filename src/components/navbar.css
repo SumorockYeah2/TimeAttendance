@@ -1,0 +1,52 @@
+.notifications-dropdown {
+    position: fixed;
+    top: 55px;
+    right: 20px;
+    background-color: #f8f9fa;
+    color: black;
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 9999;
+}
+
+.notification-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+.notification-item {
+  padding: 10px;
+  margin-bottom: 5px;
+}
+
+.sidebar-username {
+  font-size: 14px;
+  font-weight: bold;
+  padding: 10px;
+  color: white;
+  text-align: center;
+}
+
+.notifications-header {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 10px;
+  font-size: 16px;
+  border-bottom: 1px solid #ddd; 
+  background: #f9f9f9;
+}
+
+.notifications-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.clear-button {
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 14px;
+}
