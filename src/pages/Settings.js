@@ -141,6 +141,7 @@ function Settings({ role }) {
                             center={[userLocation.latitude, userLocation.longitude]}
                             zoom={13}
                             style={{ height: '400px', width: '100%' }}
+                            key={userLocation.latitude + userLocation.longitude}
                         >
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
