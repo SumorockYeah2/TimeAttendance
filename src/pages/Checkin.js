@@ -26,12 +26,28 @@ function Checkin() {
 
     const [isCheckedIn, setIsCheckedIn] = useState(false);
 
+    const [isWithinRadius, setIsWithinRadius] = useState(false);
+
     const getUserLocation = () => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const {latitude, longitude} = position.coords;
                     setUserLocation({latitude, longitude});
+
+                    const storedLocation = JSON.parse(localStorage.getItem('requiredLocation'));
+                    const storedRadius = parseFloat(localStorage.getItem('gpsRadius')) || 0;
+    
+                    if (storedLocation && storedRadius) {
+                        const distance = calculateDistance(latitude, longitude, storedLocation.latitude, storedLocation.longitude);
+                        console.log(`User is ${distance.toFixed(2)} km away from the check-in location.`);
+    
+                        if (distance <= storedRadius) {
+                            setIsWithinRadius(true);
+                        } else {
+                            setIsWithinRadius(false);
+                        }
+                    }
                 },
                 (error) => {
                     console.error('Error getting user location: ',error);
@@ -85,6 +101,23 @@ function Checkin() {
             setFileName("");
         }
     };
+
+    ////////
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const toRadians = (degree) => degree * (Math.PI / 180);
+    
+        const R = 6371; // Earth's radius in km
+        const dLat = toRadians(lat2 - lat1);
+        const dLon = toRadians(lon2 - lon1);
+        const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c; // Distance in km
+    };
+
 
     ////////
     const handleSave = () => {
@@ -210,8 +243,11 @@ function Checkin() {
                         />
                     </div>
                     <div>
-                        <button className="btn btn-success" onClick={handleSave}>Check-in</button>
+                        <button className="btn btn-success" onClick={handleSave} disabled={!isWithinRadius}>Check-in</button>
                         <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                        {!isWithinRadius && <p style={{ color: 'red' }}>
+                            You are outside the allowed check-in area!<br />Please move closer to the required location.
+                        </p>}
                     </div>
                 </div>
             )}
