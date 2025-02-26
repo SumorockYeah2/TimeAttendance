@@ -19,8 +19,6 @@ import RoleData from './pages/Roles';
 
 import Logout from './pages/Logout';
 
-import ExcelTest from './pages/ExcelTest';
-
 import { useState, useEffect } from 'react';
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
@@ -86,8 +84,6 @@ function App() {
               <Route path="/roles" element={isLoggedIn ? <RoleData /> : <Navigate to ="/login" />} />
 
               <Route path="/logout" element={isLoggedIn ? <Logout /> : <Navigate to ="/login" />} />
-
-              <Route path="/exceltest" element={<ExcelTest />} />
 
               <Route path="/" element={isLoggedIn ? <Navigate to="/home2" /> : <Navigate to="/login" />} />
             </Routes>

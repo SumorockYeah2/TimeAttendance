@@ -202,18 +202,19 @@ function ManageReport() {
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
-                                {editIndex === index ? (
-                                        <>
-                                            <button className="btn btn-success" onClick={handleSave}>Save</button>
-                                            <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
-                                        </>
-                                    ) : addRemoveMode ? (
-                                        <>
-                                            <button className="btn btn-danger" onClick={() => handleRemoveEntry(index)}>Delete</button>
-                                        </>
-                                    ) : (
-                                        <button className="btn btn-primary" onClick={() => handleEdit(index)}>Edit</button>
-                                    )}
+                                    {editIndex === index ? (
+                                            <>
+                                                <button className="btn btn-success" onClick={handleSave}>Save</button>
+                                                <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                                            </>
+                                        ) : addRemoveMode ? (
+                                            <>
+                                                <button className="btn btn-danger" onClick={() => handleRemoveEntry(index)}>Delete</button>
+                                            </>
+                                        ) : (
+                                            <button className="btn btn-primary" onClick={() => handleEdit(index)}>Edit</button>
+                                        )
+                                    }
                                 </td>
                             </tr>
                         ))}

@@ -6,40 +6,16 @@ function Approve({ role }) {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const leaveType = localStorage.getItem('leaveType');
-        const leaveLocation = localStorage.getItem('leaveLocation');
-        const OffsitePlace = localStorage.getItem('OffsitePlace');
-        const leaveStartDate = localStorage.getItem('leaveStartDate');
-        const leaveStartTime = localStorage.getItem('leaveStartTime');
-        const leaveEndDate = localStorage.getItem('leaveEndDate');
-        const leaveEndTime = localStorage.getItem('leaveEndTime');
-        const supervisor = localStorage.getItem('supervisor');
-        const leaveDescription = localStorage.getItem('leaveDescription');
-        const leaveStatus = localStorage.getItem('leaveStatus');
-
-        if (leaveType) {
-            setLeaveData([
-                {
-                    leaveType: leaveType, 
-                    leaveLocation: leaveLocation,
-                    OffsitePlace: OffsitePlace,
-                    leaveStartDate: leaveStartDate, 
-                    leaveStartTime: leaveStartTime,
-                    leaveEndDate: leaveEndDate, 
-                    leaveEndTime: leaveEndTime,
-                    supervisor: supervisor,
-                    leaveDescription: leaveDescription,
-                    leaveStatus: leaveStatus
-                }
-            ]);
-        }
+        const leaveData = JSON.parse(localStorage.getItem('leaveData')) || [];
+        console.log('leaveData from localStorage:', leaveData);
+        setLeaveData(leaveData);
     }, []);
 
     const handleApprove = (index) => {
         const updatedLeaveData = [...leaveData];
         updatedLeaveData[index].leaveStatus = "Approved";
         setLeaveData(updatedLeaveData);
-        localStorage.setItem('leaveStatus', "Approved");
+        localStorage.setItem('leaveData', JSON.stringify(updatedLeaveData));
         alert(`Request ${index + 1} approved!`);
     }
 
@@ -47,7 +23,7 @@ function Approve({ role }) {
         const updatedLeaveData = [...leaveData];
         updatedLeaveData[index].leaveStatus = "Rejected";
         setLeaveData(updatedLeaveData);
-        localStorage.setItem('leaveStatus', "Rejected");
+        localStorage.setItem('leaveData', JSON.stringify(updatedLeaveData));
         alert(`Request ${index + 1} rejected!`);
     }
 
@@ -55,7 +31,33 @@ function Approve({ role }) {
         navigate('/home2');
     }
 
-    if (role !== 'Supervisor' && role !== 'Admin') {
+    const [editIndex, setEditIndex] = useState(null);
+    const [editedData, setEditedData] = useState({});
+    
+    const handleEdit = (index) => {
+        setEditIndex(index);
+        setEditedData( {...leaveData[index ]});
+    }
+
+    const handleSave = () => {
+        const updatedData = [...leaveData];
+        updatedData[editIndex] = editedData;
+        setLeaveData(updatedData);
+        localStorage.setItem('leaveData', JSON.stringify(updatedData));
+        setEditIndex(null);
+        setEditedData({});
+    }
+
+    const handleChange = (key, value) => {
+        setEditedData((prevData) => ({ ...prevData, [key]: value }));
+    }
+
+    const handleCancel = () => {
+        setEditIndex(null);
+        setEditedData({});
+    };
+
+    if (role !== 'Supervisor' && role !== 'Admin' && role !== 'HR') {
         return (
             <div>
                 <p>Access denied!</p>
@@ -66,7 +68,6 @@ function Approve({ role }) {
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>Approve/Deny Requests</h5>
-            <p>Test table - Leave Requests</p>
             <div>
                 <table className="table table-bordered table-striped">
                     <thead style={{display:'table-header-group'}}>
@@ -81,25 +82,138 @@ function Approve({ role }) {
                             <th style={{ padding: "10px" }}>Supervisor</th>
                             <th style={{ padding: "10px" }}>Description</th>
                             <th style={{ padding: "10px" }}>Status</th>
+                            {/* {role === 'HR' && <th style={{ padding: "10px" }}>Edited by</th> } */}
                             <th style={{ padding: "10px" }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody style={{display:'table-header-group'}}>
                         {leaveData.map((el, index) => (
                             <tr key={index}>
-                                <td style={{ padding: "10px" }}>{el.leaveType}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveLocation}</td>
-                                <td style={{ padding: "10px" }}>{el.OffsitePlace}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveStartDate}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveStartTime}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveEndDate}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveEndTime}</td>
-                                <td style={{ padding: "10px" }}>{el.supervisor}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveDescription}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveStatus}</td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.leaveType}
+                                            onChange={(e) => handleChange('leaveType', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.leaveType
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.leaveLocation}
+                                            onChange={(e) => handleChange('leaveLocation', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.leaveLocation
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.OffsitePlace}
+                                            onChange={(e) => handleChange('OffsitePlace', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.OffsitePlace // ค่าจะเป็น "none"
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.leaveStartDate}
+                                            onChange={(e) => handleChange('leaveStartDate', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.leaveStartDate
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.leaveStartTime}
+                                            onChange={(e) => handleChange('leaveStartTime', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.leaveStartTime
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.leaveEndDate}
+                                            onChange={(e) => handleChange('leaveEndDate', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.leaveEndDate
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.leaveEndTime}
+                                            onChange={(e) => handleChange('leaveEndTime', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.leaveEndTime
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.supervisor}
+                                            onChange={(e) => handleChange('supervisor', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.supervisor
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.leaveDescription}
+                                            onChange={(e) => handleChange('leaveDescription', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.leaveDescription
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.leaveStatus}
+                                            onChange={(e) => handleChange('leaveStatus', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.leaveStatus
+                                    )}
+                                </td>
                                 <td style={{ padding: "10px" }}>
                                     <button className="btn btn-success" onClick={() => handleApprove(index)}>Approve</button>
                                     <button className="btn btn-danger" onClick={() => handleReject(index)}>Reject</button>
+                                    {role === 'HR' && (
+                                        <>
+                                            {editIndex === index ? (
+                                                <>
+                                                <button className="btn btn-success" onClick={handleSave}>Save</button>
+                                                <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                                                </>
+                                            ) : (
+                                                <button className="btn btn-primary" onClick={() => handleEdit(index)}>Edit</button>
+                                            )}
+                                        </>
+                                    )}
                                 </td>
                             </tr>
                         ))}

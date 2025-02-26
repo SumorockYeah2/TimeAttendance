@@ -80,6 +80,7 @@ function Sidebar({ toggleSidebar, sidebarVisible, role, username }) {
             )}
             <li className={isActive('/leave') ? 'active' : ''}><Link to="/leave" onClick={handleItemClick}><FaRegCalendarAlt /> Leave Request</Link></li>
             <li className={isActive('/offsite') ? 'active' : ''}><Link to="/offsite" onClick={handleItemClick}><FaUserPlus /> Off-site Request</Link></li>
+            <li className={isActive('/approve') ? 'active' : ''}><Link to="/approve" onClick={handleItemClick}><FaCheckCircle /> Approve/Deny Requests</Link></li>
             <li className={isActive('/settings') ? 'active' : ''}><Link to="/settings" onClick={handleItemClick}><FaCog /> Settings</Link></li>
             <li className={isActive('/logout') ? 'active' : ''}><Link to="/logout" onClick={handleItemClick}><FaPowerOff /> Logout</Link></li>
           </>

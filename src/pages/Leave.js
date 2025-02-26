@@ -32,31 +32,50 @@ function Leave() {
             return;
         }
         
-        localStorage.setItem('leaveType', type);
-        localStorage.setItem('leaveStartDate', formatDate(startDate));
-        localStorage.setItem('leaveStartTime', startTime);
-        localStorage.setItem('leaveEndDate', formatDate(endDate));
-        localStorage.setItem('leaveEndTime', endTime);
-        localStorage.setItem('leaveDescription', description);
-        localStorage.setItem('supervisor', supervisor);
-        console.log(localStorage.getItem('leaveType'));
-        console.log(localStorage.getItem('leaveStartDate'));
-        console.log(localStorage.getItem('leaveStartTime'));
-        console.log(localStorage.getItem('leaveEndDate'));
-        console.log(localStorage.getItem('leaveEndTime'));
-        console.log(localStorage.getItem('leaveDescription'));
-        console.log(localStorage.getItem('supervisor'));
+        // localStorage.setItem('leaveType', type);
+        // localStorage.setItem('leaveStartDate', formatDate(startDate));
+        // localStorage.setItem('leaveStartTime', startTime);
+        // localStorage.setItem('leaveEndDate', formatDate(endDate));
+        // localStorage.setItem('leaveEndTime', endTime);
+        // localStorage.setItem('leaveDescription', description);
+        // localStorage.setItem('supervisor', supervisor);
+        // console.log(localStorage.getItem('leaveType'));
+        // console.log(localStorage.getItem('leaveStartDate'));
+        // console.log(localStorage.getItem('leaveStartTime'));
+        // console.log(localStorage.getItem('leaveEndDate'));
+        // console.log(localStorage.getItem('leaveEndTime'));
+        // console.log(localStorage.getItem('leaveDescription'));
+        // console.log(localStorage.getItem('supervisor'));
 
-        const leaveLocation = "none";
-        console.log(leaveLocation);
-        const OffsitePlace = "none";
-        console.log(OffsitePlace);
-        localStorage.setItem('leaveLocation', leaveLocation);
-        localStorage.setItem('OffsitePlace', OffsitePlace);
+        // const leaveLocation = "none";
+        // console.log(leaveLocation);
+        // const OffsitePlace = "none";
+        // console.log(OffsitePlace);
+        // localStorage.setItem('leaveLocation', leaveLocation);
+        // localStorage.setItem('OffsitePlace', OffsitePlace);
 
-        const leaveStatus = "Pending";
-        localStorage.setItem('leaveStatus', leaveStatus);
-                
+        // const leaveStatus = "Pending";
+        // localStorage.setItem('leaveStatus', leaveStatus);
+        
+        const leaveRequest = {
+            leaveType: type,
+            leaveStartDate: formatDate(startDate),
+            leaveStartTime: startTime,
+            leaveEndDate: formatDate(endDate),
+            leaveEndTime: endTime,
+            leaveDescription: description,
+            supervisor,
+            leaveLocation: "None",
+            OffsitePlace: "None",
+            leaveStatus: "Pending"
+        }
+
+        const leaveData = JSON.parse(localStorage.getItem('leaveData')) || [];
+        leaveData.push(leaveRequest);
+        localStorage.setItem('leaveData', JSON.stringify(leaveData));
+
+        console.log('leaveData after saving:', localStorage.getItem('leaveData'));
+
         alert("Request sent!");
         navigate('/home2');
     }

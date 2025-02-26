@@ -24,38 +24,57 @@ function Leave() {
     };
 
     const handleCheckIn = () => {
-        console.log(userLocation, OffsitePlace, formatDate(startDate), startTime, formatDate(endDate), endTime, supervisor, description);
+        // console.log(userLocation, OffsitePlace, formatDate(startDate), startTime, formatDate(endDate), endTime, supervisor, description);
 
         if (!userLocation || !OffsitePlace || !startDate || !startTime || !endDate || !endTime || !supervisor || !description ) {
             alert('Please fill in all the fields!');
             return;
         }
 
-        localStorage.setItem('leaveLocation', JSON.stringify(userLocation));
-        localStorage.setItem('OffsitePlace', OffsitePlace);
-        localStorage.setItem('leaveStartDate', formatDate(startDate));
-        localStorage.setItem('leaveStartTime', startTime);
-        localStorage.setItem('leaveEndDate', formatDate(endDate));
-        localStorage.setItem('leaveEndTime', endTime);
-        localStorage.setItem('supervisor', supervisor);
-        localStorage.setItem('leaveDescription', description);
-        console.log(localStorage.getItem('leaveLocation'));
-        console.log(localStorage.getItem('OffsitePlace'));
-        console.log(localStorage.getItem('leaveStartDate'));
-        console.log(localStorage.getItem('leaveStartTime'));
-        console.log(localStorage.getItem('leaveEndDate'));
-        console.log(localStorage.getItem('leaveEndTime'));
-        console.log(localStorage.getItem('supervisor'));
-        console.log(localStorage.getItem('leaveDescription'));
+        // localStorage.setItem('leaveLocation', JSON.stringify(userLocation));
+        // localStorage.setItem('OffsitePlace', OffsitePlace);
+        // localStorage.setItem('leaveStartDate', formatDate(startDate));
+        // localStorage.setItem('leaveStartTime', startTime);
+        // localStorage.setItem('leaveEndDate', formatDate(endDate));
+        // localStorage.setItem('leaveEndTime', endTime);
+        // localStorage.setItem('supervisor', supervisor);
+        // localStorage.setItem('leaveDescription', description);
+        // console.log(localStorage.getItem('leaveLocation'));
+        // console.log(localStorage.getItem('OffsitePlace'));
+        // console.log(localStorage.getItem('leaveStartDate'));
+        // console.log(localStorage.getItem('leaveStartTime'));
+        // console.log(localStorage.getItem('leaveEndDate'));
+        // console.log(localStorage.getItem('leaveEndTime'));
+        // console.log(localStorage.getItem('supervisor'));
+        // console.log(localStorage.getItem('leaveDescription'));
 
-        const leaveType = "Off-site Work";
-        console.log(leaveType);
+        // const leaveType = "Off-site Work";
+        // console.log(leaveType);
 
-        localStorage.setItem('leaveType', leaveType);
-        console.log(localStorage.getItem('leaveType'));
-        const leaveStatus = "Pending";
-        localStorage.setItem('leaveStatus', leaveStatus);
+        // localStorage.setItem('leaveType', leaveType);
+        // console.log(localStorage.getItem('leaveType'));
+        // const leaveStatus = "Pending";
+        // localStorage.setItem('leaveStatus', leaveStatus);
         
+        const newLeaveRequest = {
+            leaveType: "Off-site Work",
+            leaveLocation: JSON.stringify(userLocation),
+            OffsitePlace,
+            leaveStartDate: formatDate(startDate),
+            leaveStartTime: startTime,
+            leaveEndDate: formatDate(endDate),
+            leaveEndTime: endTime,
+            supervisor,
+            leaveDescription: description,
+            leaveStatus: "Pending"
+        };
+
+        const existingRequests = JSON.parse(localStorage.getItem('leaveData')) || [];
+
+        existingRequests.push(newLeaveRequest);
+
+        localStorage.setItem('leaveData', JSON.stringify(existingRequests));
+
         alert("Check-in complete!");
         navigate('/home2'); // Navigate to /checkin
     };

@@ -51,15 +51,16 @@ function Checkout() {
 
     // ////////
 
-    // const options = [
-    //     { value: 'one', label: 'one' },
-    //     { value: 'two', label: 'two' }
-    // ]
-    // const DefaultOption = options[0].value;
-    // const _onSelect = (selectedOption) => {
-    //     console.log(selectedOption);
-    //     setSelectedOption(selectedOption.value);
-    // };
+    const options = [
+        { value: 'one', label: 'one' },
+        { value: 'two', label: 'two' },
+        { value: 'Typical Office Job', label: 'office'}
+    ]
+    const DefaultOption = options[0].value;
+    const _onSelect = (selectedOption) => {
+        console.log(selectedOption);
+        setSelectedOption(selectedOption.value);
+    };
     
     // ////////
     // const handleFileChange = (event) => {
@@ -118,7 +119,14 @@ function Checkout() {
             <h5>Check-out</h5>
             {isCheckedIn ? (
                 <div>
-                    <p>Are you sure?</p>
+                    <p>Choose job to check-out:</p>
+                    <Dropdown 
+                        className="dropdown"
+                        options={options}
+                        onChange={_onSelect}
+                        value={selectedOption || ""}
+                        placeholder="Select a job"
+                    />
                     <div>
                         <button className="btn btn-success" onClick={handleCheckout}>Check-out!</button>
                         <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
