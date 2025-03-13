@@ -1,11 +1,11 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css'; // Import Leaflet's CSS
 import L from 'leaflet';
 import Dropdown from 'react-dropdown';
 import 'react-dropdown/style.css';
-import './css/Checkin.css'
+import './css/Checkin.css';
 
 import { FaImage } from 'react-icons/fa';
 
@@ -23,47 +23,10 @@ function Checkin() {
     const [isFormCompleted, setIsFormCompleted] = useState(false);
     const [selectedOption, setSelectedOption] = useState(null);
     const [textInput, setTextInput] = useState("");
-
     const [isCheckedIn, setIsCheckedIn] = useState(false);
-
     const [isWithinRadius, setIsWithinRadius] = useState(false);
 
-    const getUserLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const {latitude, longitude} = position.coords;
-                    setUserLocation({latitude, longitude});
-
-                    const storedLocation = JSON.parse(localStorage.getItem('requiredLocation'));
-                    const storedRadius = parseFloat(localStorage.getItem('gpsRadius')) || 0;
-    
-                    if (storedLocation && storedRadius) {
-                        const distance = calculateDistance(latitude, longitude, storedLocation.latitude, storedLocation.longitude);
-                        console.log(`User is ${distance.toFixed(2)} km away from the check-in location.`);
-    
-                        if (distance <= storedRadius) {
-                            setIsWithinRadius(true);
-                        } else {
-                            setIsWithinRadius(false);
-                        }
-                    }
-                },
-                (error) => {
-                    console.error('Error getting user location: ',error);
-                }
-            );
-        }
-        else {
-            console.error('Geolocation is not supported by this browser');
-        }
-    }
-
     const navigate = useNavigate();
-
-    const handleCheckIn = () => {
-        navigate('/checkin'); // Navigate to /checkin
-    };
 
     useEffect(() => {
         getUserLocation();
@@ -73,60 +36,84 @@ function Checkin() {
         }
     }, []);
 
-    ////////
+    const getUserLocation = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    setUserLocation({ latitude, longitude });
+
+                    const storedLocation = JSON.parse(localStorage.getItem('requiredLocation'));
+                    const storedRadius = parseFloat(localStorage.getItem('gpsRadius')) || 0;
+
+                    if (storedLocation && storedRadius) {
+                        const distance = calculateDistance(latitude, longitude, storedLocation.latitude, storedLocation.longitude);
+                        console.log(`User is ${distance.toFixed(2)} km away from the check-in location.`);
+
+                        if (distance <= storedRadius) {
+                            setIsWithinRadius(true);
+                        } else {
+                            setIsWithinRadius(false);
+                        }
+                    }
+                },
+                (error) => {
+                    console.error('Error getting user location: ', error);
+                }
+            );
+        } else {
+            console.error('Geolocation is not supported by this browser');
+        }
+    };
 
     const options = [
         { value: 'one', label: 'one' },
         { value: 'two', label: 'two' }
-    ]
+    ];
     const DefaultOption = options[0].value;
     const _onSelect = (selectedOption) => {
         console.log(selectedOption);
         setSelectedOption(selectedOption.value);
     };
-    
-    ////////
+
     const handleFileChange = (event) => {
         const file = event.target.files[0];
         if (file) {
             console.log('Selected file:', file);
-            const fileURL = URL.createObjectURL(file); 
+            const fileURL = URL.createObjectURL(file);
 
             localStorage.setItem('uploadedFilePath', fileURL);
             setSelectedFile(file);
             setFileName(file.name);
         } else {
-            localStorage.setItem('uploadedFilePath');
-            setSelectedFile(null); 
+            localStorage.removeItem('uploadedFilePath');
+            setSelectedFile(null);
             setFileName("");
         }
     };
 
-    ////////
     const calculateDistance = (lat1, lon1, lat2, lon2) => {
         const toRadians = (degree) => degree * (Math.PI / 180);
-    
+
         const R = 6371; // Earth's radius in km
         const dLat = toRadians(lat2 - lat1);
         const dLon = toRadians(lon2 - lon1);
-        const a = 
+        const a =
             Math.sin(dLat / 2) * Math.sin(dLat / 2) +
             Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
             Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        
+
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c; // Distance in km
     };
 
-
-    ////////
     const handleSave = () => {
         console.log(selectedOption, textInput, userLocation);
         if (selectedOption && textInput.trim() !== "") {
             setIsFormCompleted(true);
             localStorage.setItem('isCheckedIn', 'true');
 
-            const currentDateTime = new Date().toISOString(); 
+            const currentDateTime = new Date().toISOString();
             console.log(currentDateTime);
 
             localStorage.setItem('userLocation', JSON.stringify(userLocation));
@@ -138,8 +125,7 @@ function Checkin() {
             console.log(localStorage.getItem('textInput'));
             console.log(localStorage.getItem('checkInDateTime'));
 
-
-            const checkOutDateTime = "Pending"; 
+            const checkOutDateTime = "Pending";
             console.log(checkOutDateTime);
 
             localStorage.setItem('checkOutDateTime', checkOutDateTime);
@@ -147,7 +133,7 @@ function Checkin() {
             const uploadedFilePath = selectedFile ? URL.createObjectURL(selectedFile) : null; // Use state value
             localStorage.setItem('uploadedFilePath', uploadedFilePath); // Update localStorage here
             console.log(localStorage.getItem('uploadedFilePath'));
-            
+
             const checkInData = {
                 userLocation,
                 selectedOption,
@@ -155,7 +141,7 @@ function Checkin() {
                 checkInDateTime: currentDateTime,
                 checkOutDateTime: "Pending",
                 uploadedFilePath: uploadedFilePath
-            }
+            };
             console.log(checkInData);
 
             const event = new Event('checkInStatusChanged');
@@ -166,18 +152,18 @@ function Checkin() {
         } else {
             alert("Please fill in all the fields!");
         }
-    }
+    };
 
     const handleCancel = () => {
         navigate('/home2');
-    }
+    };
 
     const handleCheckOut = () => {
         navigate('/checkout');
-    }
+    };
 
     return (
-        <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
+        <div style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>Check-in</h5>
 
             {isCheckedIn ? (
@@ -188,7 +174,7 @@ function Checkin() {
                 </div>
             ) : (
                 <div>
-                    <Dropdown 
+                    <Dropdown
                         className="dropdown"
                         options={options}
                         onChange={_onSelect}
@@ -198,18 +184,14 @@ function Checkin() {
 
                     {userLocation && (
                         <div style={{ paddingTop: '10px' }}>
-                            {/* <p>User Location</p>
-                            <p>Latitude: {userLocation.latitude}</p>
-                            <p>Longitude: {userLocation.longitude}</p> */}
-
                             <MapContainer
                                 center={[userLocation.latitude, userLocation.longitude]}
                                 zoom={13}
                                 style={{ height: '400px', width: '100%' }}
                             >
                                 <TileLayer
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                 />
                                 <Marker position={[userLocation.latitude, userLocation.longitude]}>
                                     <Popup>
