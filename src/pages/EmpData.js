@@ -1,51 +1,88 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import * as XLSX from 'xlsx';
 
 function EmpData() {
-    const [leaveData, setLeaveData] = useState([
-        {
-            employeeID: 'E001',
-            employeeName: 'Tinky Winky',
-            department: 'Engineering',
-            division: 'Software',
-            gender: 'Male',
-            role: 'Developer',
-            phone: '123-456-7890',
-            email: 'tinkywinky@teletubbies.com',
-            ipPhone: '1001'
-        },
-        {
-            employeeID: 'E002',
-            employeeName: 'Laa-Laa',
-            department: 'Marketing',
-            division: 'Digital',
-            gender: 'Female',
-            role: 'Manager',
-            phone: '987-654-3210',
-            email: 'laalaalilaa@teletubbies.com',
-            ipPhone: '1002'
-        }
-    ]);
+    const [empData, setEmpData] = useState([]);
+
+    const fetchEmployeeData = () => {
+        fetch('http://localhost:3001/employee-data')
+            .then(response => response.json())
+            .then(data => {
+                console.log('EmployeeData from database:', data);
+                setEmpData(data);
+            })
+            .catch(error => {
+                console.error('Error fetching employee data:', error);
+            });
+    };
+
+    useEffect(() => {
+        fetchEmployeeData();
+    }, []);
 
     const handleImport = (event) => {
         const file = event.target.files[0];
         const reader = new FileReader();
 
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, {type: 'array'});
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-            setLeaveData((prevData) => [...prevData, ...jsonData]);
+            const expectedHeaders = [
+                'idemployees', 'name', 'department', 'division', 
+                'gender', 'role', 'phone', 'email', 'ipphone'
+            ];
+
+            const fileHeaders = jsonData[0];
+
+            const isValid = expectedHeaders.every((header, index) => header === fileHeaders[index]);
+
+            if (!isValid) {
+                alert('ไฟล์ที่นำเข้ามีหัวตารางไม่ถูกต้อง');
+                return;
+            }
+            
+            const dataToImport = jsonData.slice(1).map(row => {
+                let obj = {};
+                expectedHeaders.forEach((header, index) => {
+                    obj[header] = row[index];
+                });
+                return obj;
+            });
+            // setEmpData((prevData) => [...prevData, ...dataToImport]);
+            for (const employee of dataToImport) {
+                const response = await fetch('http://localhost:3001/empdata-check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ idemployees: employee.idemployees })
+                });
+
+                const result = await response.json();
+
+                if (!result.exists) {
+                    await fetch('http://localhost:3001/empdata-add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(employee)
+                    });
+                }
+            }
+
+            fetchEmployeeData();
         }
 
         reader.readAsArrayBuffer(file);
     }
 
     const handleExport = () => {
-        const worksheet = XLSX.utils.json_to_sheet(leaveData);
+        const worksheet = XLSX.utils.json_to_sheet(empData);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Employee Data');
 
@@ -57,15 +94,47 @@ function EmpData() {
     
     const handleEdit = (index) => {
         setEditIndex(index);
-        setEditedData( {...leaveData[index ]});
+        setEditedData( {...empData[index ]});
     }
 
-    const handleSave = () => {
-        const updatedData = [...leaveData];
-        updatedData[editIndex] = editedData;
-        setLeaveData(updatedData);
-        setEditIndex(null);
-        setEditedData({});
+    const handleSave = async () => {
+        const updatedData = [...empData];
+        const updatedEditedData = {
+            ...editedData,
+            idemployees: empData[editIndex].idemployees,
+            name: editedData.name,
+            department: editedData.department,
+            division: editedData.division,
+            gender: editedData.gender,
+            role: editedData.role,
+            phone: editedData.phone,
+            email: editedData.email,
+            ipphone: editedData.ipphone
+        };
+        updatedData[editIndex] = updatedEditedData;
+        setEmpData(updatedData);
+
+        try {
+            const response = await fetch('http://localhost:3001/empdata-update', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedEditedData)
+            });
+
+            if (response.ok) {
+                setEditIndex(null);
+                setEditedData({});
+            } else {
+                const errorText = await response.text();
+                console.error('Error:', errorText);
+                alert("บันทึกข้อมูลไม่สำเร็จ");
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+        }
     }
 
     const handleChange = (key, value) => {
@@ -84,24 +153,77 @@ function EmpData() {
         setAddRemoveMode((prev) => !prev);
     };
 
-    const handleAddEmployee = () => {
-        if (newEmployee.employeeID) {
-            setLeaveData((prevData) => [...prevData, newEmployee]);
-            setNewEmployee({});
+    // const handleAddEmployee = () => {
+    //     if (newEmployee.employeeID) {
+    //         setEmpData((prevData) => [...prevData, newEmployee]);
+    //         setNewEmployee({});
+    //     }
+    // };
+
+
+    // const handleRemoveEmployee = (index) => {
+    //     const confirmed = window.confirm('ท่านต้องการลบพนักงานนี้ออกใช่หรือไม่');
+    //     if (confirmed) {
+    //         setEmpData((prevData) => prevData.filter((_, i) => i !== index));
+    //     }
+    // };
+    
+    const handleAddEmployee = async () => {
+        if (newEmployee.idemployees) {
+            try {
+                const response = await fetch('http://localhost:3001/empdata-add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newEmployee)
+                });
+
+                if (response.ok) {
+                    setEmpData((prevData) => [...prevData, newEmployee]);
+                    setNewEmployee({});
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error:', errorText);
+                    alert("เพิ่มข้อมูลไม่สำเร็จ");
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert("เกิดข้อผิดพลาดในการเพิ่มข้อมูล");
+            }
         }
     };
 
-    const handleRemoveEmployee = (index) => {
-        const confirmed = window.confirm('Are you sure you want to delete this employee?');
+    const handleRemoveEmployee = async (index) => {
+        const confirmed = window.confirm('ท่านต้องการลบพนักงานนี้ออกใช่หรือไม่');
         if (confirmed) {
-            setLeaveData((prevData) => prevData.filter((_, i) => i !== index));
+            const idemployees = empData[index].idemployees;
+            try {
+                const response = await fetch(`http://localhost:3001/empdata-remove/${idemployees}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    setEmpData((prevData) => prevData.filter((_, i) => i !== index));
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error:', errorText);
+                    alert("ลบข้อมูลไม่สำเร็จ");
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert("เกิดข้อผิดพลาดในการลบข้อมูล");
+            }
         }
     };
-    
+
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>Manage Employee Data</h5>
-            <button className="btn btn-primary" onClick={() => document.getElementById('file-upload').click()}>Import Data...</button>
+            <h5>จัดการข้อมูลพนักงาน</h5>
+            <button className="btn btn-primary" onClick={() => document.getElementById('file-upload').click()}>นำเข้าข้อมูล</button>
             <input
                 type="file"
                 id="file-upload"
@@ -109,47 +231,47 @@ function EmpData() {
                 accept=".xlsx,.xls"
                 onChange={handleImport}
             />
-            <button className="btn btn-primary" onClick={handleExport}>Export Data...</button>
-            <button className="btn btn-primary" onClick={toggleAddRemoveMode}>{addRemoveMode ? 'Done' : 'Add/Remove...'}</button>
+            <button className="btn btn-primary" onClick={handleExport}>ส่งออกข้อมูล</button>
+            <button className="btn btn-primary" onClick={toggleAddRemoveMode}>{addRemoveMode ? 'เสร็จสิ้น' : 'เพิ่ม/ลบ'}</button>
             <div>
                 <table className="table table-bordered table-striped">
                     <thead style={{display:'table-header-group'}}>
                         <tr>
-                            <th style={{ padding: "10px" }}>Employee ID</th>
-                            <th style={{ padding: "10px" }}>Name</th>
-                            <th style={{ padding: "10px" }}>Department</th>
-                            <th style={{ padding: "10px" }}>Division</th>
-                            <th style={{ padding: "10px" }}>Gender</th>
-                            <th style={{ padding: "10px" }}>Role</th>
-                            <th style={{ padding: "10px" }}>Phone</th>
-                            <th style={{ padding: "10px" }}>Email</th>
-                            <th style={{ padding: "10px" }}>IP Phone</th>
-                            <th style={{ padding: "10px" }}>Actions</th>
+                            <th style={{ padding: "10px" }}>รหัสพนักงาน</th>
+                            <th style={{ padding: "10px" }}>ชื่อ</th>
+                            <th style={{ padding: "10px" }}>ฝ่าย</th>
+                            <th style={{ padding: "10px" }}>แผนก</th>
+                            <th style={{ padding: "10px" }}>เพศ</th>
+                            <th style={{ padding: "10px" }}>ตำแหน่ง</th>
+                            <th style={{ padding: "10px" }}>เบอร์โทรศัพท์</th>
+                            <th style={{ padding: "10px" }}>อีเมล</th>
+                            <th style={{ padding: "10px" }}>ไอพีโฟน</th>
+                            <th style={{ padding: "10px" }}>การทำงาน</th>
                         </tr>
                     </thead>
                     <tbody style={{display:'table-header-group'}}>
-                        {leaveData.map((el, index) => (
+                        {empData.map((el, index) => (
                             <tr key={index}>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.employeeID}
-                                            onChange={(e) => handleChange('employeeID', e.target.value)}
+                                            value={editedData.idemployees}
+                                            onChange={(e) => handleChange('idemployees', e.target.value)}
                                         />
                                     ) : (
-                                        el.employeeID
+                                        el.idemployees
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.employeeName}
-                                            onChange={(e) => handleChange('employeeName', e.target.value)}
+                                            value={editedData.name}
+                                            onChange={(e) => handleChange('name', e.target.value)}
                                         />
                                     ) : (
-                                        el.employeeName
+                                        el.name
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
@@ -222,25 +344,25 @@ function EmpData() {
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.ipPhone}
-                                            onChange={(e) => handleChange('ipPhone', e.target.value)}
+                                            value={editedData.ipphone}
+                                            onChange={(e) => handleChange('ipphone', e.target.value)}
                                         />
                                     ) : (
-                                        el.ipPhone
+                                        el.ipphone
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <>
-                                            <button className="btn btn-success" onClick={handleSave}>Save</button>
-                                            <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                                            <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
+                                            <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                                         </>
                                     ) : addRemoveMode ? (
                                         <>
-                                            <button className="btn btn-danger" onClick={() => handleRemoveEmployee(index)}>Delete</button>
+                                            <button className="btn btn-danger" onClick={() => handleRemoveEmployee(index)}>ลบ</button>
                                         </>
                                     ) : (
-                                        <button className="btn btn-primary" onClick={() => handleEdit(index)}>Edit</button>
+                                        <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไข</button>
                                     )}
                                 </td>
                             </tr>
@@ -250,18 +372,18 @@ function EmpData() {
                             <td>
                                 <input
                                     className="form-control"
-                                    value={newEmployee.employeeID || ''}
+                                    value={newEmployee.idemployees || ''}
                                     onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, employeeID: e.target.value })
+                                        setNewEmployee({ ...newEmployee, idemployees: e.target.value })
                                     }
                                 />
                             </td>
                             <td>
                                 <input
                                     className="form-control"
-                                    value={newEmployee.employeeName || ''}
+                                    value={newEmployee.name || ''}
                                     onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, employeeName: e.target.value })
+                                        setNewEmployee({ ...newEmployee, name: e.target.value })
                                     }
                                 />
                             </td>
@@ -322,15 +444,15 @@ function EmpData() {
                             <td>
                                 <input
                                     className="form-control"
-                                    value={newEmployee.ipPhone || ''}
+                                    value={newEmployee.ipphone || ''}
                                     onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, ipPhone: e.target.value })
+                                        setNewEmployee({ ...newEmployee, ipphone: e.target.value })
                                     }
                                 />
                             </td>
                             <td style={{ padding: "10px" }}>
                                 <button className="btn btn-success" onClick={handleAddEmployee}>
-                                    Add
+                                    เพิ่ม
                                 </button>
                             </td>
                         </tr>

@@ -5,26 +5,125 @@ function Approve({ role }) {
     const [leaveData, setLeaveData] = useState([]);
     const navigate = useNavigate();
 
+    const fetchLeaveData = () => {
+        fetch('http://localhost:3001/request-get')
+            .then(response => response.json())
+            .then(data => {
+                console.log('leaveData from database:', data);
+                setLeaveData(data);
+            })
+            .catch(error => {
+                console.error('Error fetching leave data:', error);
+            });
+    };
+
     useEffect(() => {
-        const leaveData = JSON.parse(localStorage.getItem('leaveData')) || [];
-        console.log('leaveData from localStorage:', leaveData);
-        setLeaveData(leaveData);
+        fetchLeaveData();
     }, []);
+    
+    // useEffect(() => {
+    //     fetch('http://localhost:3001/request-get')
+    //         .then(response => response.json())
+    //         .then(data => {
+    //             console.log('leaveData from database:', data);
+    //             setLeaveData(data);
+    //         })
+    //         .catch(error => {
+    //             console.error('Error fetching leave data:', error);
+    //         });
+    // }, []);
+    
+    // useEffect(() => {
+    //     const leaveData = JSON.parse(localStorage.getItem('leaveData')) || [];
+    //     console.log('leaveData from localStorage:', leaveData);
+    //     setLeaveData(leaveData);
+    // }, []);
 
     const handleApprove = (index) => {
         const updatedLeaveData = [...leaveData];
-        updatedLeaveData[index].leaveStatus = "Approved";
+        updatedLeaveData[index].leaveStatus = "อนุมัติแล้ว";
         setLeaveData(updatedLeaveData);
-        localStorage.setItem('leaveData', JSON.stringify(updatedLeaveData));
-        alert(`Request ${index + 1} approved!`);
+
+        fetch(`http://localhost:3001/request-update/${updatedLeaveData[index].idrequests}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: "อนุมัติแล้ว" })
+        })
+        .then(response => {
+            console.log('Response from server:', response);
+            if (response.ok) {
+                alert(`อนุมัติคำร้องที่ ${index + 1} เรียบร้อย`);
+                fetchLeaveData();
+
+                if (updatedLeaveData[index].leaveType === "คำร้องย้อนหลัง") {
+                    const attendanceData = {
+                        userLocation: JSON.parse(updatedLeaveData[index].location),
+                        selectedOption: updatedLeaveData[index].jobID,
+                        textInput: updatedLeaveData[index].reason,
+                        checkInDateTime: updatedLeaveData[index].start_date + 'T' + updatedLeaveData[index].start_time,
+                        checkOutDateTime: updatedLeaveData[index].end_date + 'T' + updatedLeaveData[index].end_time,
+                        uploadedFilePath: updatedLeaveData[index].image_url || null
+                    };
+
+                    fetch('http://localhost:3001/checkin', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(attendanceData)
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            console.log('Attendance data inserted successfully');
+                        } else {
+                            console.error('Failed to insert attendance data');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error inserting attendance data:', error);
+                    });
+                }
+            } else {
+                return response.text().then(text => { throw new Error(text) });
+            }
+        })
+        .catch(error => {
+            console.error('Error updating leave status:', error);
+            alert('Failed to update leave status. Please try again.');
+        });
+        // localStorage.setItem('leaveData', JSON.stringify(updatedLeaveData));
+        // alert(`อนุมัติคำร้องที่ ${index + 1} เรียบร้อย`);
     }
 
     const handleReject = (index) => {
         const updatedLeaveData = [...leaveData];
-        updatedLeaveData[index].leaveStatus = "Rejected";
+        updatedLeaveData[index].leaveStatus = "ไม่อนุมัติ";
         setLeaveData(updatedLeaveData);
-        localStorage.setItem('leaveData', JSON.stringify(updatedLeaveData));
-        alert(`Request ${index + 1} rejected!`);
+
+        fetch(`http://localhost:3001/request-update/${updatedLeaveData[index].idrequests}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: "ไม่อนุมัติ" })
+        })
+        .then(response => {
+            console.log('Response from server:', response);
+            if (response.ok) {
+                alert(`ปฏิเสธคำร้องที่ ${index + 1} เรียบร้อย`);
+                fetchLeaveData();
+            } else {
+                return response.text().then(text => { throw new Error(text) });
+            }
+        })
+        .catch(error => {
+            console.error('Error updating leave status:', error);
+            alert('Failed to update leave status. Please try again.');
+        });
+        // localStorage.setItem('leaveData', JSON.stringify(updatedLeaveData));
+        // alert(`ปฏิเสธคำร้องที่ ${index + 1} เรียบร้อย`);
     }
 
     const handleHome = () => {
@@ -39,13 +138,46 @@ function Approve({ role }) {
         setEditedData( {...leaveData[index ]});
     }
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const updatedData = [...leaveData];
-        updatedData[editIndex] = editedData;
+        const updatedEditedData = {
+            ...editedData,
+            idrequests: leaveData[editIndex].idrequests,
+            leaveType: editedData.leaveType,
+            leaveStartDate: editedData.start_date,
+            leaveStartTime: editedData.start_time,
+            leaveEndDate: editedData.end_date,
+            leaveEndTime: editedData.end_time,
+            leaveDescription: editedData.reason,
+            leaveLocation: editedData.location,
+            leaveStatus: editedData.status
+        };
+        updatedData[editIndex] = updatedEditedData;
         setLeaveData(updatedData);
-        localStorage.setItem('leaveData', JSON.stringify(updatedData));
-        setEditIndex(null);
-        setEditedData({});
+
+        try {
+            const response = await fetch('http://localhost:3001/leave-update', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedEditedData)
+            });
+
+            if (response.ok) {
+                setEditIndex(null);
+                setEditedData({});
+            } else {
+                console.error('Error:', await response.text());
+                alert("บันทึกข้อมูลไม่สำเร็จ");
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+        }
+        // localStorage.setItem('leaveData', JSON.stringify(updatedData));
+        // setEditIndex(null);
+        // setEditedData({});
     }
 
     const handleChange = (key, value) => {
@@ -60,30 +192,30 @@ function Approve({ role }) {
     if (role !== 'Supervisor' && role !== 'Admin' && role !== 'HR') {
         return (
             <div>
-                <p>Access denied!</p>
-                <button className="btn btn-primary" onClick={handleHome}>Home</button>
+                <p>ท่านไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+                <button className="btn btn-primary" onClick={handleHome}>กลับหน้าแรก</button>
             </div>
         )
     }
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>Approve/Deny Requests</h5>
+            <h5>อนุมัติ/ปฏิเสธคำร้อง</h5>
             <div>
                 <table className="table table-bordered table-striped">
                     <thead style={{display:'table-header-group'}}>
                         <tr>
-                            <th style={{ padding: "10px" }}>Type</th>
-                            <th style={{ padding: "10px" }}>Location</th>
-                            <th style={{ padding: "10px" }}>Place</th>
-                            <th style={{ padding: "10px" }}>Start Date</th>
-                            <th style={{ padding: "10px" }}>Start Time</th>
-                            <th style={{ padding: "10px" }}>End Date</th>
-                            <th style={{ padding: "10px" }}>End Time</th>
-                            <th style={{ padding: "10px" }}>Supervisor</th>
-                            <th style={{ padding: "10px" }}>Description</th>
-                            <th style={{ padding: "10px" }}>Status</th>
+                            <th style={{ padding: "10px" }}>ประเภท</th>
+                            <th style={{ padding: "10px" }}>พิกัดสถานที่</th>
+                            <th style={{ padding: "10px" }}>ชื่อสถานที่</th>
+                            <th style={{ padding: "10px" }}>วันที่เริ่มต้น</th>
+                            <th style={{ padding: "10px" }}>เวลาเริ่มต้น</th>
+                            <th style={{ padding: "10px" }}>วันที่สิ้นสุด</th>
+                            <th style={{ padding: "10px" }}>เวลาสิ้นสุด</th>
+                            {/* <th style={{ padding: "10px" }}>หัวหน้า</th> */}
+                            <th style={{ padding: "10px" }}>รายละเอียด</th>
+                            <th style={{ padding: "10px" }}>สถานะ</th>
                             {/* {role === 'HR' && <th style={{ padding: "10px" }}>Edited by</th> } */}
-                            <th style={{ padding: "10px" }}>Actions</th>
+                            <th style={{ padding: "10px" }}>การทำงาน</th>
                         </tr>
                     </thead>
                     <tbody style={{display:'table-header-group'}}>
@@ -104,69 +236,69 @@ function Approve({ role }) {
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.leaveLocation}
-                                            onChange={(e) => handleChange('leaveLocation', e.target.value)}
+                                            value={editedData.location}
+                                            onChange={(e) => handleChange('location', e.target.value)}
                                         />
                                     ) : (
-                                        el.leaveLocation
+                                        el.location
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.OffsitePlace}
-                                            onChange={(e) => handleChange('OffsitePlace', e.target.value)}
+                                            value={editedData.place_name}
+                                            onChange={(e) => handleChange('place_name', e.target.value)}
                                         />
                                     ) : (
-                                        el.OffsitePlace // ค่าจะเป็น "none"
+                                        el.place_name // ค่าจะเป็น "none"
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.leaveStartDate}
-                                            onChange={(e) => handleChange('leaveStartDate', e.target.value)}
+                                            value={editedData.start_date}
+                                            onChange={(e) => handleChange('start_date', e.target.value)}
                                         />
                                     ) : (
-                                        el.leaveStartDate
+                                        el.start_date
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.leaveStartTime}
-                                            onChange={(e) => handleChange('leaveStartTime', e.target.value)}
+                                            value={editedData.start_time}
+                                            onChange={(e) => handleChange('start_time', e.target.value)}
                                         />
                                     ) : (
-                                        el.leaveStartTime
+                                        el.start_time
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.leaveEndDate}
-                                            onChange={(e) => handleChange('leaveEndDate', e.target.value)}
+                                            value={editedData.end_date}
+                                            onChange={(e) => handleChange('end_date', e.target.value)}
                                         />
                                     ) : (
-                                        el.leaveEndDate
+                                        el.end_date
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.leaveEndTime}
-                                            onChange={(e) => handleChange('leaveEndTime', e.target.value)}
+                                            value={editedData.end_time}
+                                            onChange={(e) => handleChange('end_time', e.target.value)}
                                         />
                                     ) : (
-                                        el.leaveEndTime
+                                        el.end_time
                                     )}
                                 </td>
-                                <td style={{ padding: "10px" }}>
+                                {/* <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
@@ -176,42 +308,52 @@ function Approve({ role }) {
                                     ) : (
                                         el.supervisor
                                     )}
-                                </td>
+                                </td> */}
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.leaveDescription}
-                                            onChange={(e) => handleChange('leaveDescription', e.target.value)}
+                                            value={editedData.reason}
+                                            onChange={(e) => handleChange('reason', e.target.value)}
                                         />
                                     ) : (
-                                        el.leaveDescription
+                                        el.reason
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.leaveStatus}
-                                            onChange={(e) => handleChange('leaveStatus', e.target.value)}
+                                            value={editedData.status}
+                                            onChange={(e) => handleChange('status', e.target.value)}
                                         />
                                     ) : (
-                                        el.leaveStatus
+                                        el.status
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
-                                    <button className="btn btn-success" onClick={() => handleApprove(index)}>Approve</button>
-                                    <button className="btn btn-danger" onClick={() => handleReject(index)}>Reject</button>
+                                    {/* <button className="btn btn-success" onClick={() => handleApprove(index)}>อนุมัติ</button>
+                                    <button className="btn btn-danger" onClick={() => handleReject(index)}>ปฏิเสธ</button> */}
                                     {role === 'HR' && (
                                         <>
                                             {editIndex === index ? (
                                                 <>
-                                                <button className="btn btn-success" onClick={handleSave}>Save</button>
-                                                <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                                                <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
+                                                <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                                                 </>
                                             ) : (
-                                                <button className="btn btn-primary" onClick={() => handleEdit(index)}>Edit</button>
+                                                <>
+                                                    <button className="btn btn-success" onClick={() => handleApprove(index)}>อนุมัติ</button>
+                                                    <button className="btn btn-danger" onClick={() => handleReject(index)}>ปฏิเสธ</button>
+                                                    <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไขข้อมูล</button>
+                                                </>
                                             )}
+                                        </>
+                                    )}
+                                    {['Employee', 'Supervisor', 'Admin'].includes(role) && (
+                                        <>
+                                            <button className="btn btn-success" onClick={() => handleApprove(index)}>อนุมัติ</button>
+                                            <button className="btn btn-danger" onClick={() => handleReject(index)}>ปฏิเสธ</button>
                                         </>
                                     )}
                                 </td>

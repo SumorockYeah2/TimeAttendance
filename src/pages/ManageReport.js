@@ -1,47 +1,87 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import * as XLSX from 'xlsx';
 
 function ManageReport() {
-    const [leaveData, setLeaveData] = useState([
-        {
-            workId: '001',
-            type: 'Job A',
-            textInput: 'Engineering',
-            checkInDateTime: '2025-01-21 9:00',
-            checkOutDateTime: '2025-01-21 15:00',
-            location: 'XXX',
-            uploadedFilePath: 'xxxxxxx'
-        },
-        {
-            workId: '002',
-            type: 'Job B',
-            textInput: 'Development',
-            checkInDateTime: '2025-01-21 9:00',
-            checkOutDateTime: '2025-01-21 15:00',
-            location: 'YYY',
-            uploadedFilePath: 'yyyyyyy'
-        }
-    ]);
+    const [workData, setWorkData] = useState([]);
+
+    const fetchAttendanceData = () => {
+        fetch('http://localhost:3001/attendance')
+            .then(response => response.json())
+            .then(data => {
+                console.log('attendance data from database:', data);
+                setWorkData(data);
+            })
+            .catch(error => {
+                console.error('Error fetching attendance data:', error);
+            });
+    };
+
+    useEffect(() => {
+        fetchAttendanceData();
+    }, []);
 
     const handleImport = (event) => {
         const file = event.target.files[0];
         const reader = new FileReader();
 
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, {type: 'array'});
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-            setLeaveData((prevData) => [...prevData, ...jsonData]);
+            const expectedHeaders = [
+                'idattendance', 'jobID', 'jobType', 'description', 'in_time', 'out_time', 'location', 'image_url'
+            ];
+
+            const fileHeaders = jsonData[0];
+
+            const isValid = expectedHeaders.every((header, index) => header === fileHeaders[index]);
+
+            if (!isValid) {
+                alert('ไฟล์ที่นำเข้ามีหัวตารางไม่ถูกต้อง');
+                return;
+            }
+            
+            const dataToImport = jsonData.slice(1).map(row => {
+                let obj = {};
+                expectedHeaders.forEach((header, index) => {
+                    obj[header] = row[index];
+                });
+                return obj;
+            });
+    
+            for (const attendance of dataToImport) {
+                const response = await fetch('http://localhost:3001/attendance-check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ idattendance: attendance.idattendance })
+                });
+    
+                const result = await response.json();
+    
+                if (!result.exists) {
+                    await fetch('http://localhost:3001/attendance-add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(attendance)
+                    });
+                }
+            }
+    
+            fetchAttendanceData();
         }
 
         reader.readAsArrayBuffer(file);
     }
 
     const handleExport = () => {
-        const worksheet = XLSX.utils.json_to_sheet(leaveData);
+        const worksheet = XLSX.utils.json_to_sheet(workData);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Employee Data');
 
@@ -53,15 +93,49 @@ function ManageReport() {
     
     const handleEdit = (index) => {
         setEditIndex(index);
-        setEditedData( {...leaveData[index ]});
+        setEditedData( {...workData[index ]});
     }
 
-    const handleSave = () => {
-        const updatedData = [...leaveData];
-        updatedData[editIndex] = editedData;
-        setLeaveData(updatedData);
-        setEditIndex(null);
-        setEditedData({});
+    const handleSave = async () => {
+        const updatedData = [...workData];
+        const updatedEditedData = {
+            ...editedData,
+            idattendance: workData[editIndex].idattendance,
+            jobID: editedData.jobID,
+            jobType: editedData.jobType,
+            description: editedData.description,
+            in_time: editedData.in_time,
+            out_time: editedData.out_time,
+            location: editedData.location,
+            image_url: editedData.image_url,
+        };
+        updatedData[editIndex] = updatedEditedData;
+        setWorkData(updatedData);
+        // updatedData[editIndex] = editedData;
+        // setWorkData(updatedData);
+        // setEditIndex(null);
+        // setEditedData({});
+        try {
+            const response = await fetch('http://localhost:3001/attendance-update', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedEditedData)
+            });
+
+            if (response.ok) {
+                setEditIndex(null);
+                setEditedData({});
+            } else {
+                const errorText = await response.text();
+                console.error('Error:', errorText);
+                alert("บันทึกข้อมูลไม่สำเร็จ");
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+        }
     }
 
     const handleChange = (key, value) => {
@@ -80,24 +154,64 @@ function ManageReport() {
         setAddRemoveMode((prev) => !prev);
     };
 
-    const handleAddEntry = () => {
-        if (newEntry.workId) {
-            setLeaveData((prevData) => [...prevData, newEntry]);
-            setNewEntry({});
+    const handleAddEntry = async () => {
+        if (newEntry.idattendance) {
+            try {
+                const response = await fetch('http://localhost:3001/attendance-add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newEntry)
+                });
+
+                if (response.ok) {
+                    setWorkData((prevData) => [...prevData, newEntry]);
+                    setNewEntry({});
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error:', errorText);
+                    alert("เพิ่มข้อมูลไม่สำเร็จ");
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert("เกิดข้อผิดพลาดในการเพิ่มข้อมูล");
+            }
+            // setWorkData((prevData) => [...prevData, newEntry]);
+            // setNewEntry({});
         }
     };
 
-    const handleRemoveEntry = (index) => {
-        const confirmed = window.confirm('Are you sure you want to delete this entry?');
+    const handleRemoveEntry = async (index) => {
+        const confirmed = window.confirm('ท่านต้องการลบรายการนี้ออกใช่หรือไม่');
         if (confirmed) {
-            setLeaveData((prevData) => prevData.filter((_, i) => i !== index));
+            const idattendance = workData[index].idattendance;
+            try {
+                const response = await fetch(`http://localhost:3001/attendance-remove/${idattendance}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+    
+                if (response.ok) {
+                    setWorkData((prevData) => prevData.filter((_, i) => i !== index));
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error:', errorText);
+                    alert("ลบข้อมูลไม่สำเร็จ");
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert("เกิดข้อผิดพลาดในการลบข้อมูล");
+            }
         }
     };
     
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>Manage Report</h5>
-            <button className="btn btn-primary"  onClick={() => document.getElementById('file-upload').click()}>Import Data...</button>
+            <h5>จัดการรายงานผลการทำงาน</h5>
+            <button className="btn btn-primary"  onClick={() => document.getElementById('file-upload').click()}>นำเข้าข้อมูล</button>
             <input
                 type="file"
                 id="file-upload"
@@ -105,78 +219,90 @@ function ManageReport() {
                 accept=".xlsx,.xls"
                 onChange={handleImport}
             />
-            <button className="btn btn-primary" onClick={handleExport}>Export Data...</button>
-            <button className="btn btn-primary" onClick={toggleAddRemoveMode}>{addRemoveMode ? 'Done' : 'Add/Remove...'}</button>
+            <button className="btn btn-primary" onClick={handleExport}>ส่งออกข้อมูล</button>
+            <button className="btn btn-primary" onClick={toggleAddRemoveMode}>{addRemoveMode ? 'เสร็จสิ้น' : 'เพิ่ม/ลบ'}</button>
             <div>
                 <table className="table table-bordered table-striped">
                     <thead style={{display:'table-header-group'}}>
                         <tr>
-                            <th style={{ padding: "10px" }}>Work ID</th>
-                            <th style={{ padding: "10px" }}>Type</th>
-                            <th style={{ padding: "10px" }}>Description</th>
-                            <th style={{ padding: "10px" }}>In Time</th>
-                            <th style={{ padding: "10px" }}>Out Time</th>
-                            <th style={{ padding: "10px" }}>Location</th>
-                            <th style={{ padding: "10px" }}>Image</th>
-                            <th style={{ padding: "10px" }}>Actions</th>
+                            <th style={{ padding: "10px" }}>ลำดับ</th>
+                            <th style={{ padding: "10px" }}>รหัสงาน</th>
+                            <th style={{ padding: "10px" }}>ประเภทงาน</th>
+                            <th style={{ padding: "10px" }}>รายละเอียดงาน</th>
+                            <th style={{ padding: "10px" }}>เวลาเข้า</th>
+                            <th style={{ padding: "10px" }}>เวลาออก</th>
+                            <th style={{ padding: "10px" }}>พิกัดสถานที่</th>
+                            <th style={{ padding: "10px" }}>ไฟล์รูปภาพ</th>
+                            <th style={{ padding: "10px" }}>การทำงาน</th>
                         </tr>
                     </thead>
                     <tbody style={{display:'table-header-group'}}>
-                        {leaveData.map((el, index) => (
+                        {workData.map((el, index) => (
                             <tr key={index}>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.workId}
-                                            onChange={(e) => handleChange('workId', e.target.value)}
+                                            value={editedData.idattendance}
+                                            onChange={(e) => handleChange('idattendance', e.target.value)}
                                         />
                                     ) : (
-                                        el.workId
+                                        el.idattendance
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.type}
-                                            onChange={(e) => handleChange('type', e.target.value)}
+                                            value={editedData.jobID}
+                                            onChange={(e) => handleChange('jobID', e.target.value)}
                                         />
                                     ) : (
-                                        el.type
+                                        el.jobID
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.textInput}
-                                            onChange={(e) => handleChange('textInput', e.target.value)}
+                                            value={editedData.jobType}
+                                            onChange={(e) => handleChange('jobType', e.target.value)}
                                         />
                                     ) : (
-                                        el.textInput
+                                        el.jobType
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.checkInDateTime}
-                                            onChange={(e) => handleChange('checkInDateTime', e.target.value)}
+                                            value={editedData.description}
+                                            onChange={(e) => handleChange('description', e.target.value)}
                                         />
                                     ) : (
-                                        el.checkInDateTime
+                                        el.description
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.checkOutDateTime}
-                                            onChange={(e) => handleChange('checkOutDateTime', e.target.value)}
+                                            value={editedData.in_time}
+                                            onChange={(e) => handleChange('in_time', e.target.value)}
                                         />
                                     ) : (
-                                        el.checkOutDateTime
+                                        el.in_time
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.out_time}
+                                            onChange={(e) => handleChange('out_time', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.out_time
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
@@ -194,25 +320,25 @@ function ManageReport() {
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.uploadedFilePath}
-                                            onChange={(e) => handleChange('uploadedFilePath', e.target.value)}
+                                            value={editedData.image_url}
+                                            onChange={(e) => handleChange('image_url', e.target.value)}
                                         />
                                     ) : (
-                                        el.uploadedFilePath
+                                        el.image_url
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     {editIndex === index ? (
                                             <>
-                                                <button className="btn btn-success" onClick={handleSave}>Save</button>
-                                                <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                                                <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
+                                                <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                                             </>
                                         ) : addRemoveMode ? (
                                             <>
-                                                <button className="btn btn-danger" onClick={() => handleRemoveEntry(index)}>Delete</button>
+                                                <button className="btn btn-danger" onClick={() => handleRemoveEntry(index)}>ลบ</button>
                                             </>
                                         ) : (
-                                            <button className="btn btn-primary" onClick={() => handleEdit(index)}>Edit</button>
+                                            <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไข</button>
                                         )
                                     }
                                 </td>
@@ -223,45 +349,54 @@ function ManageReport() {
                                 <td>
                                     <input
                                         className="form-control"
-                                        value={newEntry.workId || ''}
+                                        value={newEntry.idattendance || ''}
                                         onChange={(e) =>
-                                            setNewEntry({ ...newEntry, workId: e.target.value })
+                                            setNewEntry({ ...newEntry, idattendance: e.target.value })
                                         }
                                     />
                                 </td>
                                 <td>
                                     <input
                                         className="form-control"
-                                        value={newEntry.type || ''}
+                                        value={newEntry.jobID || ''}
                                         onChange={(e) =>
-                                            setNewEntry({ ...newEntry, type: e.target.value })
+                                            setNewEntry({ ...newEntry, jobID: e.target.value })
                                         }
                                     />
                                 </td>
                                 <td>
                                     <input
                                         className="form-control"
-                                        value={newEntry.textInput || ''}
+                                        value={newEntry.jobType || ''}
                                         onChange={(e) =>
-                                            setNewEntry({ ...newEntry, textInput: e.target.value })
+                                            setNewEntry({ ...newEntry, jobType: e.target.value })
                                         }
                                     />
                                 </td>
                                 <td>
                                     <input
                                         className="form-control"
-                                        value={newEntry.checkInDateTime || ''}
+                                        value={newEntry.description || ''}
                                         onChange={(e) =>
-                                            setNewEntry({ ...newEntry, checkInDateTime: e.target.value })
+                                            setNewEntry({ ...newEntry, description: e.target.value })
                                         }
                                     />
                                 </td>
                                 <td>
                                     <input
                                         className="form-control"
-                                        value={newEntry.checkOutDateTime || ''}
+                                        value={newEntry.in_time || ''}
                                         onChange={(e) =>
-                                            setNewEntry({ ...newEntry, checkOutDateTime: e.target.value })
+                                            setNewEntry({ ...newEntry, in_time: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEntry.out_time || ''}
+                                        onChange={(e) =>
+                                            setNewEntry({ ...newEntry, out_time: e.target.value })
                                         }
                                     />
                                 </td>
@@ -277,15 +412,15 @@ function ManageReport() {
                                 <td>
                                     <input
                                         className="form-control"
-                                        value={newEntry.uploadedFilePath || ''}
+                                        value={newEntry.image_url || ''}
                                         onChange={(e) =>
-                                            setNewEntry({ ...newEntry, uploadedFilePath: e.target.value })
+                                            setNewEntry({ ...newEntry, image_url: e.target.value })
                                         }
                                     />
                                 </td>
                                 <td style={{ padding: "10px" }}>
                                     <button className="btn btn-success" onClick={handleAddEntry}>
-                                        Add
+                                        เพิ่ม
                                     </button>
                                 </td>
                             </tr>

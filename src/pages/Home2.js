@@ -17,6 +17,8 @@ function Home2() {
 
     const [isWithinRadius, setIsWithinRadius] = useState(false);
     
+    const [showDropdown, setShowDropdown] = useState(false);
+
     const getUserLocation = () => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -72,7 +74,7 @@ function Home2() {
     };
 
     const handleRequest = () => {
-        navigate('/leave');
+        setShowDropdown(!showDropdown);
     }
 
     const handleCheckOut = () => {
@@ -104,7 +106,7 @@ function Home2() {
                     <MapContainer
                         center={[userLocation.latitude, userLocation.longitude]}
                         zoom={13}
-                        style={{ height: '400px', width: '100%' }}
+                        style={{ height: '400px', width: '75vw' }}
                     >
                         <TileLayer
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -112,8 +114,8 @@ function Home2() {
                         />
                         <Marker position={[userLocation.latitude, userLocation.longitude]}>
                             <Popup>
-                                You are here! <br />
-                                Latitude: {userLocation.latitude}, Longitude: {userLocation.longitude}
+                                ท่านอยู่ที่นี่ <br />
+                                ละติจูด: {userLocation.latitude}, ลองจิจูด: {userLocation.longitude}
                             </Popup>
                         </Marker>
                     </MapContainer>
@@ -122,13 +124,19 @@ function Home2() {
 
             <div style={{ paddingTop: '10px' }}>
                 {isCheckedIn ? (
-                    <button className="btn btn-success" onClick={handleCheckOut}>Check-out</button>
+                    <button className="btn btn-success" onClick={handleCheckOut}>ลงเวลาออก</button>
                 ) : (
-                    <button className="btn btn-success" onClick={handleCheckIn} disabled={!isWithinRadius}>Check-in</button>
+                    <button className="btn btn-success" onClick={handleCheckIn} disabled={!isWithinRadius}>ลงเวลาเข้า</button>
                 )}
-                <button className="btn btn-primary" onClick={handleRequest}>Request/Report</button>
-                {!isWithinRadius && <p style={{ color: 'red' }}>
-                    You are outside the allowed check-in area!<br />Please move closer to the required location.
+                <button className="btn btn-primary" onClick={handleRequest}>ทำคำร้อง</button>
+                {showDropdown && (
+                    <div className="dropdown-menu" style={{ display: 'block' }}>
+                        <a className="dropdown-item" href="/leave">คำร้องลา</a>
+                        <a className="dropdown-item" href="/offsite">คำร้องออกนอกสถานที่</a>
+                    </div>
+                )}
+                {!isCheckedIn && !isWithinRadius && <p style={{ color: 'red' }}>
+                    ท่านไม่สามารถลงเวลาเข้างานได้ เนื่องจากไม่ได้อยู่ภายในรัศมีที่กำหนดไว้ในระบบ<br />กรุณาเดินทางเข้าใกล้สถานที่ตามพิกัดที่ได้รับมอบหมายแล้วลองอีกครั้ง
                 </p>}
             </div>
         </div>

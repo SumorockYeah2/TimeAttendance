@@ -9,12 +9,45 @@ import 'react-dropdown/style.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
+import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
+import { useMap } from 'react-leaflet/hooks';
+import 'leaflet-geosearch/dist/geosearch.css';
 // delete L.Icon.Default.prototype._getIconUrl;
 // L.Icon.Default.mergeOptions({
 //   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
 //   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 //   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
 // });
+function SearchControl() {
+    const map = useMap();
+
+    useEffect(() => {
+        const provider = new OpenStreetMapProvider();
+
+        const searchControl = new GeoSearchControl({
+            provider,
+            style: 'bar',
+            showMarker: true,
+            showPopup: false,
+            marker: {
+                icon: new L.Icon.Default(),
+                draggable: false,
+            },
+            maxMarkers: 1,
+            retainZoomLevel: false,
+            animateZoom: true,
+            autoClose: true,
+            searchLabel: 'ค้นหาสถานที่',
+            keepResult: true,
+        });
+
+        map.addControl(searchControl);
+
+        return () => map.removeControl(searchControl);
+    }, [map]);
+
+    return null;
+}
 
 function Leave() {
     const navigate = useNavigate();
@@ -23,60 +56,69 @@ function Leave() {
         return date.toISOString().split('T')[0];
     };
 
-    const handleCheckIn = () => {
+    const handleCheckIn = async () => {
         // console.log(userLocation, OffsitePlace, formatDate(startDate), startTime, formatDate(endDate), endTime, supervisor, description);
 
-        if (!userLocation || !OffsitePlace || !startDate || !startTime || !endDate || !endTime || !supervisor || !description ) {
-            alert('Please fill in all the fields!');
+        if (!userLocation || !OffsitePlace || !startDate || !startTime || !endDate || !endTime || !description ) {
+            alert('โปรดกรอกข้อมูลให้ครบทั้งหมดทุกช่องก่อน');
             return;
         }
 
-        // localStorage.setItem('leaveLocation', JSON.stringify(userLocation));
-        // localStorage.setItem('OffsitePlace', OffsitePlace);
-        // localStorage.setItem('leaveStartDate', formatDate(startDate));
-        // localStorage.setItem('leaveStartTime', startTime);
-        // localStorage.setItem('leaveEndDate', formatDate(endDate));
-        // localStorage.setItem('leaveEndTime', endTime);
-        // localStorage.setItem('supervisor', supervisor);
-        // localStorage.setItem('leaveDescription', description);
-        // console.log(localStorage.getItem('leaveLocation'));
-        // console.log(localStorage.getItem('OffsitePlace'));
-        // console.log(localStorage.getItem('leaveStartDate'));
-        // console.log(localStorage.getItem('leaveStartTime'));
-        // console.log(localStorage.getItem('leaveEndDate'));
-        // console.log(localStorage.getItem('leaveEndTime'));
-        // console.log(localStorage.getItem('supervisor'));
-        // console.log(localStorage.getItem('leaveDescription'));
+        const startDateTime = new Date(`${formatDate(startDate)}T${startTime}`);
+        const endDateTime = new Date(`${formatDate(endDate)}T${endTime}`);
 
-        // const leaveType = "Off-site Work";
-        // console.log(leaveType);
+        if (startDateTime >= endDateTime) {
+            alert('วันที่-เวลาเริ่มต้นเป็นวันที่-เวลาซึ่งอยู่หลังจากวันที่-เวลาสิ้นสุด โปรดระบุใหม่ให้ถูกต้อง');
+            return;
+        }
 
-        // localStorage.setItem('leaveType', leaveType);
-        // console.log(localStorage.getItem('leaveType'));
-        // const leaveStatus = "Pending";
-        // localStorage.setItem('leaveStatus', leaveStatus);
-        
         const newLeaveRequest = {
-            leaveType: "Off-site Work",
+            leaveType: "งานนอกสถานที่",
             leaveLocation: JSON.stringify(userLocation),
             OffsitePlace,
             leaveStartDate: formatDate(startDate),
             leaveStartTime: startTime,
             leaveEndDate: formatDate(endDate),
             leaveEndTime: endTime,
-            supervisor,
+            // supervisor,
             leaveDescription: description,
-            leaveStatus: "Pending"
+            leaveStatus: "รออนุมัติ"
         };
 
-        const existingRequests = JSON.parse(localStorage.getItem('leaveData')) || [];
+        console.log('Sending leave request:', newLeaveRequest);
 
-        existingRequests.push(newLeaveRequest);
+        try {
+            const response = await fetch('http://localhost:3001/request-send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newLeaveRequest)
+            });
+    
+            console.log('Response status:', response.status);
+            console.log('Response status text:', response.statusText);
 
-        localStorage.setItem('leaveData', JSON.stringify(existingRequests));
+            if (response.ok) {
+                alert("ทำคำร้องเรียบร้อย");
+                navigate('/home2');
+            } else {
+                const errorData = await response.text();
+                console.error('Error response:', errorData);
+                alert("Failed to save leave request. Please try again.");
+            }
+        } catch (error) {
+            console.error('Error saving leave request:', error);
+            alert("Failed to save leave request. Please try again.");
+        }
+        // const existingRequests = JSON.parse(localStorage.getItem('leaveData')) || [];
 
-        alert("Check-in complete!");
-        navigate('/home2'); // Navigate to /checkin
+        // existingRequests.push(newLeaveRequest);
+
+        // localStorage.setItem('leaveData', JSON.stringify(existingRequests));
+
+        // alert("ทำคำร้องเรียบร้อย");
+        // navigate('/home2'); // Navigate to /checkin
     };
 
     const handleCancel = () => {
@@ -126,11 +168,18 @@ function Leave() {
     }, []);
     /////
 
+    const handleMarkerDrag = (event) => {
+        const { lat, lng } = event.target.getLatLng();
+        const newLocation = { latitude: lat, longitude: lng };
+
+        setUserLocation(newLocation);
+    };
+
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>Off-site Work Request</h5>
+            <h5>ทำคำร้องออกนอกสถานที่</h5>
             <div>
-                <p>Location</p>
+                <p>เลือกพิกัด</p>
                 {userLocation && (
                     <div>
                         {/* <p>User Location</p>
@@ -140,88 +189,102 @@ function Leave() {
                         <MapContainer
                             center={[userLocation.latitude, userLocation.longitude]}
                             zoom={13}
-                            style={{ height: '400px', width: '100%' }}
+                            style={{ height: '400px', width: '75vw' }}
                         >
                             <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                             />
-                            <Marker position={[userLocation.latitude, userLocation.longitude]}>
+                            <Marker 
+                                position={[userLocation.latitude, userLocation.longitude]}
+                                draggable={true}
+                                eventHandlers={{ dragend: handleMarkerDrag }}
+                            >
                                 <Popup>
-                                    You are here! <br />
-                                    Latitude: {userLocation.latitude}, Longitude: {userLocation.longitude}
+                                    คลิกลากหมุดนี้ เพื่อเลือกพิกัดที่ต้องการ <br />
+                                    ละติจูด: {userLocation.latitude}, ลองจิจูด: {userLocation.longitude}
                                 </Popup>
                             </Marker>
+                            <SearchControl />
                         </MapContainer>
                     </div>
                 )}
             </div>
             <div>
-                <p>Place</p>
+                <p>ชื่อสถานที่</p>
                 <input
                     type="text"
                     className="form-control"
                     value={OffsitePlace}
                     onChange={(e) => setOffsitePlace(e.target.value)}
+                    style={{ width: '330px' }}
                 />
             </div>
             <div>
-                <p>Start</p>
-                <DatePicker
-                    className="form-control"
-                    selected={startDate}
-                    onChange={(date) => setStartDate(date)} // Update the state on date selection
-                    dateFormat="yyyy-MM-dd" // Optional: Customize the format
-                    placeholderText="Select a start date" // Placeholder
-                />
-                <input
-                    type="time"
-                    className="form-control"
-                    placeholder="Start time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                />
+                <p>วันที่-เวลาเริ่มต้น</p>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <DatePicker
+                        className="form-control"
+                        selected={startDate}
+                        onChange={(date) => setStartDate(date)} // Update the state on date selection
+                        dateFormat="yyyy-MM-dd" // Optional: Customize the format
+                        placeholderText="Select a start date" // Placeholder
+                    />
+                    <input
+                        type="time"
+                        className="form-control"
+                        placeholder="Start time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        style={{ width: '120px' }}
+                    />
+                </div>
             </div>
             
             <div>
-                <p>End</p>
-                <DatePicker
-                    className="form-control"
-                    selected={endDate}
-                    onChange={(date) => setEndDate(date)} // Update the state on date selection
-                    dateFormat="yyyy-MM-dd" // Optional: Customize the format
-                    placeholderText="Select an end date" // Placeholder
-                />
-                <input
-                    type="time"
-                    className="form-control"
-                    placeholder="End time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                />
+                <p>วันที่-เวลาสิ้นสุด</p>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <DatePicker
+                        className="form-control"
+                        selected={endDate}
+                        onChange={(date) => setEndDate(date)} // Update the state on date selection
+                        dateFormat="yyyy-MM-dd" // Optional: Customize the format
+                        placeholderText="Select an end date" // Placeholder
+                    />
+                    <input
+                        type="time"
+                        className="form-control"
+                        placeholder="End time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        style={{ width: '120px' }}
+                    />
+                </div>
             </div>
-            <div>
-                <p>Supervisor</p>
+            {/* <div>
+                <p>หัวหน้า</p>
                 <input
                     type="text"
                     className="form-control"
                     value={supervisor}
                     onChange={(e) => setSupervisor(e.target.value)}
+                    style={{ width: '330px' }}
                 />
-            </div>
+            </div> */}
             <div>
-                <p>Description</p>
+                <p>ระบุสาเหตุ</p>
                 <input
                     type="text"
                     className="form-control"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
+                    style={{ width: '330px' }}
                 />
             </div>
 
             <div style={{ paddingTop: '10px' }}>
-                <button className="btn btn-success" onClick={handleCheckIn}>Send</button>
-                <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                <button className="btn btn-success" onClick={handleCheckIn}>ส่งคำร้อง</button>
+                <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
             </div>
         </div>
     );

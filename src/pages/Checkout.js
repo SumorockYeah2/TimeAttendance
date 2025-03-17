@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Dropdown from 'react-dropdown';
 import 'react-dropdown/style.css';
+import moment from 'moment-timezone';
 
 function Checkout() {
     const [selectedFile, setSelectedFile] = useState(null);
@@ -23,20 +24,50 @@ function Checkout() {
         setSelectedOption(selectedOption.value);
     };
 
-    const handleCheckout = () => {
+    const handleCheckout = async () => {
         localStorage.setItem('isCheckedIn', 'false');
         localStorage.removeItem('isCheckedIn');
 
-        const checkOutDateTime = new Date().toISOString();
+        // const checkOutDateTime = new Date().toISOString();
+        const checkOutDateTime = moment().tz('Asia/Bangkok').format();
         console.log(checkOutDateTime);
 
         localStorage.setItem('checkOutDateTime', checkOutDateTime);
 
-        const event = new Event('checkInStatusChanged');
-        window.dispatchEvent(event);
+        const checkOutData = {
+            selectedOption,
+            checkOutDateTime
+        };
 
-        alert("Check-out complete!");
-        navigate('/home2');
+        try {
+            const response = await fetch('http://localhost:3001/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(checkOutData)
+            });
+
+            console.log(response);
+
+            if (response.ok) {
+                const event = new Event('checkInStatusChanged');
+                window.dispatchEvent(event);
+
+                alert("ลงเวลาออกงานเรียบร้อย");
+                navigate('/home2');
+            } else {
+                alert("Failed to save check-out data. Please try again.");
+            }
+        } catch (error) {
+            console.error('Error saving check-out data:', error);
+            alert("Failed to save check-out data. Please try again.");
+        }
+        // const event = new Event('checkInStatusChanged');
+        // window.dispatchEvent(event);
+
+        // alert("Check-out complete!");
+        // navigate('/home2');
     };
 
     const handleCancel = () => {
@@ -56,27 +87,27 @@ function Checkout() {
 
     return (
         <div style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>Check-out</h5>
+            <h5>ลงเวลาออกงาน</h5>
             {isCheckedIn ? (
                 <div>
-                    <p>Choose job to check-out:</p>
+                    <p>งานที่จะลงเวลาออก</p>
                     <Dropdown
                         className="dropdown"
                         options={options}
                         onChange={_onSelect}
                         value={selectedOption || ""}
-                        placeholder="Select a job"
+                        placeholder="โปรดระบุ"
                     />
                     <div>
-                        <button className="btn btn-success" onClick={handleCheckout}>Check-out!</button>
-                        <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                        <button className="btn btn-success" onClick={handleCheckout}>ลงเวลาออก</button>
+                        <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                     </div>
                 </div>
             ) : (
                 <div>
-                    <p>You haven't checked-in yet! Please check-in first.</p>
-                    <button className="btn btn-success" onClick={handleCheckIn}>Check-in</button>
-                    <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                    <p>ไม่สามารถลงเวลาออกงานได้ เนื่องจากท่านยังไม่ได้ลงเวลาเข้างาน กรุณาลงเวลาเข้างานก่อน</p>
+                    <button className="btn btn-success" onClick={handleCheckIn}>ลงเวลาเข้า</button>
+                    <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                 </div>
             )}
         </div>

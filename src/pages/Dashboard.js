@@ -1,83 +1,89 @@
 import React, { useState, useEffect } from 'react';
 import {VictoryPie} from 'victory';
-
 import './css/Dashboard.css';
 
 function Dashboard() {
     const [metric] = useState(50);
-    const arr = [
-        { typeId: "L02", type: "Going for trip", date: "25-11-24", status: "Pending" },
-        { typeId: "L01", type: "Sick", date: "19-11-24", status: "Approved" }
-    ];
-    const arr2 = [
-        { workId: "J1", type: "Office", date: "25-11-24", time: "13:00" },
-        { workId: "J1", type: "Office", date: "19-11-24", time: "9:45" }
-    ];
-
     const [workData, setWorkData] = useState([]);
     const [leaveData, setLeaveData] = useState([]);
     
     useEffect(() => {
-        const selectedOption = localStorage.getItem('selectedOption');
-        const textInput = localStorage.getItem('textInput');
-        const checkInDateTime = localStorage.getItem('checkInDateTime');
-        const checkOutDateTime = localStorage.getItem('checkOutDateTime');
-        const userLocation = localStorage.getItem('userLocation');
-        const uploadedFilePath = localStorage.getItem('uploadedFilePath');
+        const fetchAttendanceData = async () => {
+            try {
+                const response = await fetch('http://localhost:3001/attendance', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
 
-        if (checkInDateTime) {
-            setWorkData([
-                {
-                    workId: selectedOption, 
-                    type: "Office", 
-                    textInput: textInput,
-                    checkInDateTime: checkInDateTime, 
-                    checkOutDateTime: checkOutDateTime,
-                    location: userLocation,
-                    uploadedFilePath: uploadedFilePath
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Fetched attendance data:', data);
+                    setWorkData(data);
+                } else {
+                    console.error('Failed to fetch attendance data');
                 }
-            ]);
-        }
-    }, []);
+            } catch (error) {
+                console.error('Error fetching attendance data:', error);
+            }
+        };
 
-    useEffect(() => {
-        const leaveData = JSON.parse(localStorage.getItem('leaveData')) || [];
-        console.log('leaveData from localStorage:', leaveData);
-        setLeaveData(leaveData);
+        fetchAttendanceData();
     }, []);
     // useEffect(() => {
-    //     const leaveType = localStorage.getItem('leaveType');
-    //     const leaveLocation = localStorage.getItem('leaveLocation');
-    //     const OffsitePlace = localStorage.getItem('OffsitePlace');
-    //     const leaveStartDate = localStorage.getItem('leaveStartDate');
-    //     const leaveStartTime = localStorage.getItem('leaveStartTime');
-    //     const leaveEndDate = localStorage.getItem('leaveEndDate');
-    //     const leaveEndTime = localStorage.getItem('leaveEndTime');
-    //     const supervisor = localStorage.getItem('supervisor');
-    //     const leaveDescription = localStorage.getItem('leaveDescription');
-    //     const leaveStatus = localStorage.getItem('leaveStatus');
+    //     const selectedOption = localStorage.getItem('selectedOption');
+    //     const textInput = localStorage.getItem('textInput');
+    //     const checkInDateTime = localStorage.getItem('checkInDateTime');
+    //     const checkOutDateTime = localStorage.getItem('checkOutDateTime');
+    //     const userLocation = localStorage.getItem('userLocation');
+    //     const uploadedFilePath = localStorage.getItem('uploadedFilePath');
 
-    //     if (leaveType) {
-    //         setLeaveData([
+    //     if (checkInDateTime) {
+    //         setWorkData([
     //             {
-    //                 leaveType: leaveType, 
-    //                 leaveLocation: leaveLocation,
-    //                 OffsitePlace: OffsitePlace,
-    //                 leaveStartDate: leaveStartDate, 
-    //                 leaveStartTime: leaveStartTime,
-    //                 leaveEndDate: leaveEndDate, 
-    //                 leaveEndTime: leaveEndTime,
-    //                 supervisor: supervisor,
-    //                 leaveDescription: leaveDescription,
-    //                 leaveStatus: leaveStatus
+    //                 workId: selectedOption, 
+    //                 type: "Office", 
+    //                 textInput: textInput,
+    //                 checkInDateTime: checkInDateTime, 
+    //                 checkOutDateTime: checkOutDateTime,
+    //                 location: userLocation,
+    //                 uploadedFilePath: uploadedFilePath
     //             }
     //         ]);
     //     }
     // }, []);
 
+    useEffect(() => {
+        const fetchLeaveData = async () => {
+            try {
+                const response = await fetch('http://localhost:3001/request-get', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Fetched attendance data:', data);
+                    setLeaveData(data);
+                } else {
+                    console.error('Failed to fetch attendance data');
+                }
+            } catch (error) {
+                console.error('Error fetching attendance data:', error);
+            }
+        };
+
+        fetchLeaveData();
+    }, []);
+
     return (
         <div className="dashboard-container" style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>Report</h5>
+            <h5>รายงานผลการทำงาน</h5>
             <p>Work Performance</p>
             <div className="pie-chart-container">
                 <div className="pie-chart-wrapper" style={{ display: "flex", overflowX: "auto", justifyContent: "left", alignItems: "center", gap: "20px" }}>
@@ -141,22 +147,33 @@ function Dashboard() {
             </div>
             <p></p>
         
-            <p>My Work</p>
+            <p>การลงเวลาเข้า-ออกงาน</p>
             <div className="table-container">
                 <table className="table table-bordered table-striped">
                     <thead style={{display:'table-header-group'}}>
                         <tr>
-                            <th style={{ padding: "10px" }}>Work ID</th>
-                            <th style={{ padding: "10px" }}>Type</th>
-                            <th style={{ padding: "10px" }}>Description</th>
-                            <th style={{ padding: "10px" }}>In Time</th>
-                            <th style={{ padding: "10px" }}>Out Time</th>
-                            <th style={{ padding: "10px" }}>Location</th>
-                            <th style={{ padding: "10px" }}>Image</th>
+                            <th style={{ padding: "10px" }}>รหัสงาน</th>
+                            <th style={{ padding: "10px" }}>ประเภทงาน</th>
+                            <th style={{ padding: "10px" }}>รายละเอียดงาน</th>
+                            <th style={{ padding: "10px" }}>เวลาเข้า</th>
+                            <th style={{ padding: "10px" }}>เวลาออก</th>
+                            <th style={{ padding: "10px" }}>พิกัดสถานที่</th>
+                            <th style={{ padding: "10px" }}>ไฟล์รูปภาพ</th>
                         </tr>
                     </thead>
                     <tbody style={{display:'table-header-group'}}>
                         {workData.map((el) => (
+                            <tr key={el.idattendance}>
+                                <td style={{ padding: "10px" }}>{el.jobID}</td>
+                                <td style={{ padding: "10px" }}>{el.jobType}</td>
+                                <td style={{ padding: "10px" }}>{el.description}</td>
+                                <td style={{ padding: "10px" }}>{el.in_time}</td>
+                                <td style={{ padding: "10px" }}>{el.out_time}</td>
+                                <td style={{ padding: "10px" }}>{el.location}</td>
+                                <td style={{ padding: "10px" }}>{el.image_url}</td>
+                            </tr>
+                        ))}
+                        {/* {workData.map((el) => (
                             <tr key={el.workId}>
                                 <td style={{ padding: "10px" }}>{el.workId}</td>
                                 <td style={{ padding: "10px" }}>{el.type}</td>
@@ -166,40 +183,40 @@ function Dashboard() {
                                 <td style={{ padding: "10px" }}>{el.location}</td>
                                 <td style={{ padding: "10px" }}>{el.uploadedFilePath}</td>
                             </tr>
-                        ))}
+                        ))} */}
                     </tbody>
                 </table>
             </div>
-            <p>Leave Requests</p>
+            <p>รายการคำร้องลา</p>
             <div className="table-container">
                 <table className="table table-bordered table-striped">
                     <thead style={{display:'table-header-group'}}>
                         <tr>
-                            <th style={{ padding: "10px" }}>Type</th>
-                            <th style={{ padding: "10px" }}>Location</th>
-                            <th style={{ padding: "10px" }}>Place Name</th>
-                            <th style={{ padding: "10px" }}>Start Date</th>
-                            <th style={{ padding: "10px" }}>Start Time</th>
-                            <th style={{ padding: "10px" }}>End Date</th>
-                            <th style={{ padding: "10px" }}>End Time</th>
-                            <th style={{ padding: "10px" }}>Supervisor</th>
-                            <th style={{ padding: "10px" }}>Description</th>
-                            <th style={{ padding: "10px" }}>Status</th>
+                            <th style={{ padding: "10px" }}>ประเภท</th>
+                            <th style={{ padding: "10px" }}>พิกัดสถานที่</th>
+                            <th style={{ padding: "10px" }}>ชื่อสถานที่</th>
+                            <th style={{ padding: "10px" }}>วันที่เริ่มต้น</th>
+                            <th style={{ padding: "10px" }}>เวลาเริ่มต้น</th>
+                            <th style={{ padding: "10px" }}>วันที่สิ้นสุด</th>
+                            <th style={{ padding: "10px" }}>เวลาสิ้นสุด</th>
+                            {/* <th style={{ padding: "10px" }}>Supervisor</th> */}
+                            <th style={{ padding: "10px" }}>รายละเอียด</th>
+                            <th style={{ padding: "10px" }}>สถานะ</th>
                         </tr>
                     </thead>
                     <tbody style={{display:'table-header-group'}}>
                         {leaveData.map((el) => (
-                            <tr key={el.leaveType}>
+                            <tr key={el.idrequests}>
                                 <td style={{ padding: "10px" }}>{el.leaveType}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveLocation}</td>
-                                <td style={{ padding: "10px" }}>{el.OffsitePlace}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveStartDate}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveStartTime}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveEndDate}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveEndTime}</td>
-                                <td style={{ padding: "10px" }}>{el.supervisor}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveDescription}</td>
-                                <td style={{ padding: "10px" }}>{el.leaveStatus}</td>
+                                <td style={{ padding: "10px" }}>{el.location}</td>
+                                <td style={{ padding: "10px" }}>{el.place_name}</td>
+                                <td style={{ padding: "10px" }}>{el.start_date}</td>
+                                <td style={{ padding: "10px" }}>{el.start_time}</td>
+                                <td style={{ padding: "10px" }}>{el.end_date}</td>
+                                <td style={{ padding: "10px" }}>{el.end_time}</td>
+                                {/* <td style={{ padding: "10px" }}>{el.supervisor}</td> */}
+                                <td style={{ padding: "10px" }}>{el.reason}</td>
+                                <td style={{ padding: "10px" }}>{el.status}</td>
                             </tr>
                         ))}
                     </tbody>

@@ -9,17 +9,17 @@ function Logout() {
         const isLoggedIn = JSON.parse(localStorage.getItem('isLoggedIn'))
         console.log(isLoggedIn);
         window.dispatchEvent(new Event('storage'));
-        alert("You're now logged out");
+        alert("ออกจากระบบเรียบร้อยแล้ว");
         navigate('/login');
     }
 
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>Logout</h5>
-            <p>Are you sure?</p>
+            <h5>ออกจากระบบ</h5>
+            <p>ท่านต้องการออกจากระบบหรือไม่</p>
             <div>
-                <button className="btn btn-danger" onClick={handleLogout}>Logout</button>
-                <button className="btn btn-primary" onClick={() => navigate(-1)}>Cancel</button>
+                <button className="btn btn-danger" onClick={handleLogout}>ออกจากระบบ</button>
+                <button className="btn btn-primary" onClick={() => navigate(-1)}>ยกเลิก</button>
             </div>
         </div>
     )

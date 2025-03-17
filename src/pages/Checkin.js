@@ -6,8 +6,8 @@ import L from 'leaflet';
 import Dropdown from 'react-dropdown';
 import 'react-dropdown/style.css';
 import './css/Checkin.css';
-
 import { FaImage } from 'react-icons/fa';
+import moment from 'moment-timezone';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -25,8 +25,11 @@ function Checkin() {
     const [textInput, setTextInput] = useState("");
     const [isCheckedIn, setIsCheckedIn] = useState(false);
     const [isWithinRadius, setIsWithinRadius] = useState(false);
+    const [jobOptions, setJobOptions] = useState([]);
+    const [jobDetails, setJobDetails] = useState({});
 
     const navigate = useNavigate();
+    const idemployees = localStorage.getItem('idemployees');
 
     useEffect(() => {
         getUserLocation();
@@ -35,6 +38,26 @@ function Checkin() {
             setIsCheckedIn(true); // User is already checked in
         }
     }, []);
+
+    useEffect(() => {
+        fetch(`http://localhost:3001/get-assigned-jobs/${idemployees}`)
+        //   .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+          .then(data => {
+            console.log('Fetched jobs:', data);
+            const formattedOptions = data.map(job => ({
+                value: job.jobname,
+                label: job.jobname
+            }));
+            setJobOptions(formattedOptions);
+        })
+        .catch(error => console.error('Error fetching jobs:', error));
+    }, [idemployees]);
 
     const getUserLocation = () => {
         if (navigator.geolocation) {
@@ -66,14 +89,14 @@ function Checkin() {
         }
     };
 
-    const options = [
-        { value: 'one', label: 'one' },
-        { value: 'two', label: 'two' }
-    ];
-    const DefaultOption = options[0].value;
     const _onSelect = (selectedOption) => {
         console.log(selectedOption);
         setSelectedOption(selectedOption.value);
+        setJobDetails({
+            latitude: selectedOption.latitude,
+            longitude: selectedOption.longitude,
+            radius: selectedOption.radius
+        });
     };
 
     const handleFileChange = (event) => {
@@ -107,14 +130,15 @@ function Checkin() {
         return R * c; // Distance in km
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         console.log(selectedOption, textInput, userLocation);
         if (selectedOption && textInput.trim() !== "") {
             setIsFormCompleted(true);
             localStorage.setItem('isCheckedIn', 'true');
 
-            const currentDateTime = new Date().toISOString();
-            console.log(currentDateTime);
+            // const currentDateTime = new Date().toISOString();
+            const currentDateTime = moment().tz('Asia/Bangkok').format();
+            console.log(currentDateTime)
 
             localStorage.setItem('userLocation', JSON.stringify(userLocation));
             localStorage.setItem('selectedOption', selectedOption);
@@ -144,13 +168,33 @@ function Checkin() {
             };
             console.log(checkInData);
 
-            const event = new Event('checkInStatusChanged');
-            window.dispatchEvent(event);
+            try {
+                const response = await fetch('http://localhost:3001/checkin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(checkInData)
+                });
 
-            alert("Check-in complete!");
-            navigate('/home2');
+                console.log(response);
+                
+                if (response.ok) {
+                    const event = new Event('checkInStatusChanged');
+                    window.dispatchEvent(event);
+
+                    alert("ลงเวลาเข้างานเรียบร้อย");
+                    navigate('/home2');
+                } else {
+                    alert("Failed to save check-in data. Please try again.");
+                }
+            }
+            catch (error) {
+                console.error('Error saving check-in data:', error);
+                alert("Failed to save check-in data. Please try again.");
+            }
         } else {
-            alert("Please fill in all the fields!");
+            alert("โปรดระบุงานและรายละเอียดการปฏิบัติงาน");
         }
     };
 
@@ -164,22 +208,23 @@ function Checkin() {
 
     return (
         <div style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>Check-in</h5>
+            <h5>ลงเวลาเข้างาน</h5>
 
             {isCheckedIn ? (
                 <div>
-                    <p>You have already checked in. Please check out first before you check in again.</p>
-                    <button className="btn btn-success" onClick={handleCheckOut}>Check-out</button>
-                    <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                    <p>ท่านได้ทำการลงเวลาเข้างานไปแล้ว กรุณาลงเวลาออกก่อนหากต้องการลงเวลาเข้างานใหม่อีกครั้ง.</p>
+                    <button className="btn btn-success" onClick={handleCheckOut}>ลงเวลาออก</button>
+                    <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                 </div>
             ) : (
                 <div>
                     <Dropdown
                         className="dropdown"
-                        options={options}
+                        options={jobOptions}
                         onChange={_onSelect}
                         value={selectedOption || ""}
-                        placeholder="Select a job"
+                        placeholder="โปรดระบุงาน"
+                        style={{ width: '330px' }}
                     />
 
                     {userLocation && (
@@ -187,7 +232,7 @@ function Checkin() {
                             <MapContainer
                                 center={[userLocation.latitude, userLocation.longitude]}
                                 zoom={13}
-                                style={{ height: '400px', width: '100%' }}
+                                style={{ height: '400px', width: '75vw' }}
                             >
                                 <TileLayer
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -195,8 +240,8 @@ function Checkin() {
                                 />
                                 <Marker position={[userLocation.latitude, userLocation.longitude]}>
                                     <Popup>
-                                        You are here! <br />
-                                        Latitude: {userLocation.latitude}, Longitude: {userLocation.longitude}
+                                        ท่านอยู่ที่นี่ <br />
+                                        ละติจูด: {userLocation.latitude}, ลองจิจูด: {userLocation.longitude}
                                     </Popup>
                                 </Marker>
                             </MapContainer>
@@ -208,14 +253,14 @@ function Checkin() {
                         className="form-control"
                         value={textInput}
                         onChange={(e) => setTextInput(e.target.value)}
-                        placeholder="Enter details"
+                        placeholder="ระบุรายละเอียด"
                     />
                     <div>
                         <button className="btn btn-outline-primary" onClick={() => document.getElementById('file-upload').click()}>
                             <FaImage />
                         </button>
                         <span className="file-name">
-                            {fileName ? fileName : "No file selected"}
+                            {fileName ? fileName : "แนบไฟล์รูปภาพ"}
                         </span>
                         <input
                             type="file"
@@ -225,10 +270,10 @@ function Checkin() {
                         />
                     </div>
                     <div>
-                        <button className="btn btn-success" onClick={handleSave} disabled={!isWithinRadius}>Check-in</button>
-                        <button className="btn btn-danger" onClick={handleCancel}>Cancel</button>
+                        <button className="btn btn-success" onClick={handleSave} disabled={!isWithinRadius}>ลงเวลาเข้า</button>
+                        <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                         {!isWithinRadius && <p style={{ color: 'red' }}>
-                            You are outside the allowed check-in area!<br />Please move closer to the required location.
+                        ท่านไม่สามารถลงเวลาเข้างานได้ เนื่องจากไม่ได้อยู่ภายในรัศมีที่กำหนดไว้ในระบบ<br />กรุณาเดินทางเข้าใกล้สถานที่ตามพิกัดที่ได้รับมอบหมายแล้วลองอีกครั้ง
                         </p>}
                     </div>
                 </div>
