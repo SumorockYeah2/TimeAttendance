@@ -375,45 +375,6 @@ app.delete('/attendance-remove/:idattendance', (req, res) => {
     });
 });
 
-
-// API สำหรับบันทึกข้อมูลการตั้งค่าของผู้ใช้
-app.post('/save-settings', (req, res) => {
-    const { idusers, latitude, longitude, radius } = req.body;
-    const query = `INSERT INTO user_settings (idusers, latitude, longitude, gps_radius)
-                   VALUES (?, ?, ?, ?)
-                   ON DUPLICATE KEY UPDATE
-                   latitude = VALUES(latitude),
-                   longitude = VALUES(longitude),
-                   gps_radius = VALUES(gps_radius)`;
-
-    db.query(query, [idusers, latitude, longitude, radius], (err, result) => {
-        if (err) {
-            console.error('Error saving settings:', err.stack);
-            res.status(500).send('Error saving settings');
-        } else {
-            res.status(200).send('Settings saved successfully');
-        }
-    });
-});
-
-// API สำหรับดึงข้อมูลการตั้งค่าที่บันทึกไว้ของผู้ใช้
-app.get('/get-settings/:idusers', (req, res) => {
-    const { idusers } = req.params;
-    const query = `SELECT latitude, longitude, gps_radius FROM user_settings WHERE idusers = ?`;
-    db.query(query, [idusers], (err, results) => {
-        if (err) {
-            console.error('Error fetching settings:', err.stack);
-            res.status(500).send('Error fetching settings');
-        } else {
-            if (results.length > 0) {
-                res.status(200).json(results[0]); // Send the first result as JSON
-            } else {
-                res.status(404).send('Settings not found');
-            }
-        }
-    });
-});
-
 app.post('/jobs', (req, res) => {
     console.log('Request body:', req.body);
 

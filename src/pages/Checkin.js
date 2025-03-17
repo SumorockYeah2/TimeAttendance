@@ -52,33 +52,42 @@ function Checkin() {
             console.log('Fetched jobs:', data);
             const formattedOptions = data.map(job => ({
                 value: job.jobname,
-                label: job.jobname
+                label: job.jobname,
+                latitude: job.latitude,
+                longitude: job.longitude,
+                radius: job.gps_radius
             }));
             setJobOptions(formattedOptions);
+            console.log(formattedOptions);
         })
         .catch(error => console.error('Error fetching jobs:', error));
     }, [idemployees]);
 
     const getUserLocation = () => {
+        console.log("Wee!");
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const { latitude, longitude } = position.coords;
                     setUserLocation({ latitude, longitude });
 
-                    const storedLocation = JSON.parse(localStorage.getItem('requiredLocation'));
-                    const storedRadius = parseFloat(localStorage.getItem('gpsRadius')) || 0;
+                    // const storedLocation = JSON.parse(localStorage.getItem('requiredLocation'));
+                    // const storedRadius = parseFloat(localStorage.getItem('gpsRadius')) || 0;
 
-                    if (storedLocation && storedRadius) {
-                        const distance = calculateDistance(latitude, longitude, storedLocation.latitude, storedLocation.longitude);
+                    // if (jobDetails.latitude && jobDetails.longitude && jobDetails.radius) {
+                        const distance = calculateDistance(latitude, longitude, jobDetails.latitude, jobDetails.longitude);
+                        console.log("latitude: ", latitude);
+                        console.log("longitude: ", longitude);
+                        console.log("jobDetails.latitude: ", jobDetails.latitude);
+                        console.log("jobDetails.longitude: ", jobDetails.longitude);
                         console.log(`User is ${distance.toFixed(2)} km away from the check-in location.`);
 
-                        if (distance <= storedRadius) {
+                        if (distance <= jobDetails.radius) {
                             setIsWithinRadius(true);
                         } else {
                             setIsWithinRadius(false);
                         }
-                    }
+                    // }
                 },
                 (error) => {
                     console.error('Error getting user location: ', error);
@@ -89,15 +98,39 @@ function Checkin() {
         }
     };
 
+    useEffect(() => {
+        if (userLocation && jobDetails.latitude && jobDetails.longitude && jobDetails.radius) {
+            const distance = calculateDistance(userLocation.latitude, userLocation.longitude, jobDetails.latitude, jobDetails.longitude);
+            console.log("latitude: ", userLocation.latitude);
+            console.log("longitude: ", userLocation.longitude);
+            console.log("jobDetails.latitude: ", jobDetails.latitude);
+            console.log("jobDetails.longitude: ", jobDetails.longitude);
+            console.log(`User is ${distance.toFixed(2)} km away from the check-in location.`);
+    
+            if (distance <= jobDetails.radius) {
+                setIsWithinRadius(true);
+            } else {
+                setIsWithinRadius(false);
+            }
+        }
+    }, [userLocation, jobDetails]);
+    
     const _onSelect = (selectedOption) => {
         console.log(selectedOption);
         setSelectedOption(selectedOption.value);
+        const selectedJob = jobOptions.find(job => job.value === selectedOption.value);
+        console.log("selectedJob:", selectedJob);
         setJobDetails({
-            latitude: selectedOption.latitude,
-            longitude: selectedOption.longitude,
-            radius: selectedOption.radius
+            latitude: selectedJob.latitude,
+            longitude: selectedJob.longitude,
+            radius: selectedJob.radius
         });
+        console.log(jobDetails);
     };
+
+    useEffect(() => {
+        console.log("Updated jobDetails:", jobDetails);
+    }, [jobDetails]);
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
