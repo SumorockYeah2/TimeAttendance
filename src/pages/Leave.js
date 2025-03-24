@@ -95,7 +95,14 @@ function Leave() {
                 break;
         }
         
+        const idemployees = localStorage.getItem('idemployees');
+        if (!idemployees) {
+            alert('ไม่พบข้อมูลรหัสพนักงานในระบบ');
+            return;
+        }
+
         const leaveRequest = {
+            idemployees,
             leaveType: leaveTypeText,
             leaveStartDate: formatDate(startDate),
             leaveStartTime: startTime,
@@ -125,7 +132,7 @@ function Leave() {
 
             if (response.ok) {
                 alert("ทำคำร้องเรียบร้อย");
-                navigate('/home2');
+                navigate('/checkin');
             } else {
                 const errorData = await response.text();
                 console.error('Error response:', errorData);
@@ -144,7 +151,7 @@ function Leave() {
     }
 
     const handleCancel = () => {
-        navigate('/home2');
+        navigate('/checkin');
     }
 
     const options = [
@@ -267,7 +274,6 @@ function Leave() {
                     style={{ width: '330px' }}
                 />
             </div>
-
 
             {type === 'emergency' && (
                 <>

@@ -10,18 +10,55 @@ function Checkout() {
     const [selectedOption, setSelectedOption] = useState(null);
     const [textInput, setTextInput] = useState("");
     const [isCheckedIn, setIsCheckedIn] = useState(false);
+    const [jobOptions, setJobOptions] = useState([]);
+    const [jobDetails, setJobDetails] = useState({});
 
     const navigate = useNavigate();
+    const idemployees = localStorage.getItem('idemployees');
 
-    const options = [
-        { value: 'one', label: 'one' },
-        { value: 'two', label: 'two' },
-        { value: 'Typical Office Job', label: 'office' }
-    ];
-    const DefaultOption = options[0].value;
+    useEffect(() => {
+        fetch(`http://localhost:3001/get-checked-in-jobs/${idemployees}`)
+        //   .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+            console.log('Fetched checked-in jobs:', data);
+            const formattedOptions = data.map(job => ({
+                value: job.jobname,
+                label: job.jobname,
+                jobID: job.jobID,
+                latitude: job.latitude,
+                longitude: job.longitude,
+                radius: job.gps_radius
+            }));
+            setJobOptions(formattedOptions);
+            console.log(formattedOptions);
+        })
+        .catch(error => console.error('Error fetching checked-in jobs:', error));
+    }, [idemployees]);
+
+    // const options = [
+    //     { value: 'one', label: 'one' },
+    //     { value: 'two', label: 'two' },
+    //     { value: 'Typical Office Job', label: 'office' }
+    // ];
+    // const DefaultOption = options[0].value;
     const _onSelect = (selectedOption) => {
         console.log(selectedOption);
         setSelectedOption(selectedOption.value);
+        const selectedJob = jobOptions.find(job => job.value === selectedOption.value);
+        console.log("selectedJob:", selectedJob);
+        setJobDetails({
+            jobID: selectedJob.jobID,
+            latitude: selectedJob.latitude,
+            longitude: selectedJob.longitude,
+            radius: selectedJob.radius
+        });
+        console.log(jobDetails);
     };
 
     const handleCheckout = async () => {
@@ -55,7 +92,7 @@ function Checkout() {
                 window.dispatchEvent(event);
 
                 alert("ลงเวลาออกงานเรียบร้อย");
-                navigate('/home2');
+                navigate('/checkin');
             } else {
                 alert("Failed to save check-out data. Please try again.");
             }
@@ -71,12 +108,12 @@ function Checkout() {
     };
 
     const handleCancel = () => {
-        navigate('/home2');
-    };
-
-    const handleCheckIn = () => {
         navigate('/checkin');
     };
+
+    // const handleCheckIn = () => {
+    //     navigate('/checkin');
+    // };
 
     useEffect(() => {
         const checkInStatus = localStorage.getItem('isCheckedIn');
@@ -88,12 +125,12 @@ function Checkout() {
     return (
         <div style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>ลงเวลาออกงาน</h5>
-            {isCheckedIn ? (
+            {/* {isCheckedIn ? ( */}
                 <div>
                     <p>งานที่จะลงเวลาออก</p>
                     <Dropdown
                         className="dropdown"
-                        options={options}
+                        options={jobOptions}
                         onChange={_onSelect}
                         value={selectedOption || ""}
                         placeholder="โปรดระบุ"
@@ -103,13 +140,13 @@ function Checkout() {
                         <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                     </div>
                 </div>
-            ) : (
-                <div>
-                    <p>ไม่สามารถลงเวลาออกงานได้ เนื่องจากท่านยังไม่ได้ลงเวลาเข้างาน กรุณาลงเวลาเข้างานก่อน</p>
-                    <button className="btn btn-success" onClick={handleCheckIn}>ลงเวลาเข้า</button>
-                    <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
-                </div>
-            )}
+            {/* // ) : (
+            //     <div>
+            //         <p>ไม่สามารถลงเวลาออกงานได้ เนื่องจากท่านยังไม่ได้ลงเวลาเข้างาน กรุณาลงเวลาเข้างานก่อน</p>
+            //         <button className="btn btn-success" onClick={handleCheckIn}>ลงเวลาเข้า</button>
+            //         <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
+            //     </div>
+            // )} */}
         </div>
     );
 }

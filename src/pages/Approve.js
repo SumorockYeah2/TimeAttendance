@@ -59,15 +59,18 @@ function Approve({ role }) {
 
                 if (updatedLeaveData[index].leaveType === "คำร้องย้อนหลัง") {
                     const attendanceData = {
+                        idemployees: updatedLeaveData[index].idemployees,
                         userLocation: JSON.parse(updatedLeaveData[index].location),
-                        selectedOption: updatedLeaveData[index].jobID,
+                        place_name: updatedLeaveData[index].place_name || 'none',
                         textInput: updatedLeaveData[index].reason,
                         checkInDateTime: updatedLeaveData[index].start_date + 'T' + updatedLeaveData[index].start_time,
                         checkOutDateTime: updatedLeaveData[index].end_date + 'T' + updatedLeaveData[index].end_time,
                         uploadedFilePath: updatedLeaveData[index].image_url || null
                     };
 
-                    fetch('http://localhost:3001/checkin', {
+                    console.log('Attendance data being sent:', attendanceData);
+
+                    fetch('http://localhost:3001/late-checkin', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -76,16 +79,62 @@ function Approve({ role }) {
                     })
                     .then(response => {
                         if (response.ok) {
-                            console.log('Attendance data inserted successfully');
+                            console.log('Late-checkin data inserted successfully');
                         } else {
-                            console.error('Failed to insert attendance data');
+                            console.error('Failed to insert late-checkin data');
                         }
                     })
                     .catch(error => {
-                        console.error('Error inserting attendance data:', error);
+                        console.error('Error inserting late-checkin data:', error);
                     });
                 }
-            } else {
+            }
+            if (updatedLeaveData[index].leaveType === "งานนอกสถานที่") {
+                fetch('http://localhost:3001/get-next-job-id')
+                    .then(response => response.json())
+                    .then(data => {
+                        const nextJobID = data.nextJobID;
+
+                        const jobData = {
+                            jobID: nextJobID, // Add the generated jobID
+                            idemployees: updatedLeaveData[index].idemployees,
+                            jobname: "งานนอกสถานที่",
+                            jobdesc: updatedLeaveData[index].reason || "งานนอกสถานที่ที่ได้รับอนุมัติ",
+                            latitude: JSON.parse(updatedLeaveData[index].location).latitude,
+                            longitude: JSON.parse(updatedLeaveData[index].location).longitude,
+                            radius: 5,
+                            start_date: updatedLeaveData[index].start_date,
+                            start_time: updatedLeaveData[index].start_time,
+                            end_date: updatedLeaveData[index].end_date,
+                            end_time: updatedLeaveData[index].end_time
+                        };
+
+                        console.log("Job Data being sent:", jobData);
+
+                        // Save the jobData to the database
+                        fetch('http://localhost:3001/add-job', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(jobData)
+                        })
+                        .then(response => {
+                            if (response.ok) {
+                                console.log('Job added successfully');
+                            } else {
+                                console.error('Failed to add job');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error adding job:', error);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching next job ID:', error);
+                    });
+            }
+            else {
                 return response.text().then(text => { throw new Error(text) });
             }
         })
@@ -127,7 +176,7 @@ function Approve({ role }) {
     }
 
     const handleHome = () => {
-        navigate('/home2');
+        navigate('/checkin');
     }
 
     const [editIndex, setEditIndex] = useState(null);
@@ -143,6 +192,7 @@ function Approve({ role }) {
         const updatedEditedData = {
             ...editedData,
             idrequests: leaveData[editIndex].idrequests,
+            idemployees: editedData.idemployees,
             leaveType: editedData.leaveType,
             leaveStartDate: editedData.start_date,
             leaveStartTime: editedData.start_time,
@@ -205,6 +255,7 @@ function Approve({ role }) {
                     <thead style={{display:'table-header-group'}}>
                         <tr>
                             <th style={{ padding: "10px" }}>ประเภท</th>
+                            <th style={{ padding: "10px" }}>รหัสพนักงาน</th>
                             <th style={{ padding: "10px" }}>พิกัดสถานที่</th>
                             <th style={{ padding: "10px" }}>ชื่อสถานที่</th>
                             <th style={{ padding: "10px" }}>วันที่เริ่มต้น</th>
@@ -230,6 +281,17 @@ function Approve({ role }) {
                                         />
                                     ) : (
                                         el.leaveType
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
+                                            value={editedData.idemployees}
+                                            onChange={(e) => handleChange('idemployees', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.idemployees
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>

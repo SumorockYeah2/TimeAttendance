@@ -27,6 +27,7 @@ function Checkin() {
     const [isWithinRadius, setIsWithinRadius] = useState(false);
     const [jobOptions, setJobOptions] = useState([]);
     const [jobDetails, setJobDetails] = useState({});
+    const [place_name, setPlaceName] = useState("");
 
     const navigate = useNavigate();
     const idemployees = localStorage.getItem('idemployees');
@@ -48,18 +49,19 @@ function Checkin() {
                 }
                 return response.json();
             })
-          .then(data => {
-            console.log('Fetched jobs:', data);
-            const formattedOptions = data.map(job => ({
-                value: job.jobname,
-                label: job.jobname,
-                latitude: job.latitude,
-                longitude: job.longitude,
-                radius: job.gps_radius
-            }));
-            setJobOptions(formattedOptions);
-            console.log(formattedOptions);
-        })
+            .then(data => {
+                console.log('Filtered jobs from backend:', data);
+    
+                const formattedOptions = data.map(job => ({
+                    value: job.jobname,
+                    label: job.jobname,
+                    latitude: job.latitude,
+                    longitude: job.longitude,
+                    radius: job.gps_radius
+                }));
+    
+                setJobOptions(formattedOptions);
+            })
         .catch(error => console.error('Error fetching jobs:', error));
     }, [idemployees]);
 
@@ -114,7 +116,7 @@ function Checkin() {
             }
         }
     }, [userLocation, jobDetails]);
-    
+
     const _onSelect = (selectedOption) => {
         console.log(selectedOption);
         setSelectedOption(selectedOption.value);
@@ -191,8 +193,12 @@ function Checkin() {
             localStorage.setItem('uploadedFilePath', uploadedFilePath); // Update localStorage here
             console.log(localStorage.getItem('uploadedFilePath'));
 
+            const place_name = selectedOption === "เข้าออฟฟิศ" ? "สถาบันอาหาร" : "";
+
             const checkInData = {
+                idemployees,
                 userLocation,
+                place_name,
                 selectedOption,
                 textInput,
                 checkInDateTime: currentDateTime,
@@ -217,7 +223,6 @@ function Checkin() {
                     window.dispatchEvent(event);
 
                     alert("ลงเวลาเข้างานเรียบร้อย");
-                    navigate('/home2');
                 } else {
                     alert("Failed to save check-in data. Please try again.");
                 }
@@ -231,25 +236,25 @@ function Checkin() {
         }
     };
 
-    const handleCancel = () => {
-        navigate('/home2');
-    };
+    // const handleCancel = () => {
+    //     navigate('/home2');
+    // };
 
-    const handleCheckOut = () => {
-        navigate('/checkout');
-    };
+    // const handleCheckOut = () => {
+    //     navigate('/checkout');
+    // };
 
     return (
         <div style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>ลงเวลาเข้างาน</h5>
 
-            {isCheckedIn ? (
+            {/* {isCheckedIn ? (
                 <div>
                     <p>ท่านได้ทำการลงเวลาเข้างานไปแล้ว กรุณาลงเวลาออกก่อนหากต้องการลงเวลาเข้างานใหม่อีกครั้ง.</p>
                     <button className="btn btn-success" onClick={handleCheckOut}>ลงเวลาออก</button>
                     <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                 </div>
-            ) : (
+            ) : ( */}
                 <div>
                     <Dropdown
                         className="dropdown"
@@ -304,13 +309,13 @@ function Checkin() {
                     </div>
                     <div>
                         <button className="btn btn-success" onClick={handleSave} disabled={!isWithinRadius}>ลงเวลาเข้า</button>
-                        <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
+                        {/* <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button> */}
                         {!isWithinRadius && <p style={{ color: 'red' }}>
                         ท่านไม่สามารถลงเวลาเข้างานได้ เนื่องจากไม่ได้อยู่ภายในรัศมีที่กำหนดไว้ในระบบ<br />กรุณาเดินทางเข้าใกล้สถานที่ตามพิกัดที่ได้รับมอบหมายแล้วลองอีกครั้ง
                         </p>}
                     </div>
                 </div>
-            )}
+             {/* )} */}
 
             <style>
                 {`

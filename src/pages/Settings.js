@@ -197,7 +197,7 @@ function Settings({ role }) {
     // }
 
     const handleHome = () => {
-        navigate('/home2');
+        navigate('/checkin');
     }
 
     if (role !== 'HR' && role !== 'Admin') {

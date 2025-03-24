@@ -37,7 +37,7 @@ const Login = () => {
               console.log('User stored in localStorage:', user);
               console.log('idemployees:', idemployees);
               window.dispatchEvent(new Event('storage'));
-              navigate('/home2');
+              navigate('/checkin');
           } else {
               alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
           }

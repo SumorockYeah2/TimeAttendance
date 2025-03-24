@@ -72,7 +72,14 @@ function Leave() {
             return;
         }
 
+        const idemployees = localStorage.getItem('idemployees');
+        if (!idemployees) {
+            alert('ไม่พบข้อมูลรหัสพนักงานในระบบ');
+            return;
+        }
+
         const newLeaveRequest = {
+            idemployees,
             leaveType: "งานนอกสถานที่",
             leaveLocation: JSON.stringify(userLocation),
             OffsitePlace,
@@ -101,7 +108,7 @@ function Leave() {
 
             if (response.ok) {
                 alert("ทำคำร้องเรียบร้อย");
-                navigate('/home2');
+                navigate('/checkin');
             } else {
                 const errorData = await response.text();
                 console.error('Error response:', errorData);
@@ -122,7 +129,7 @@ function Leave() {
     };
 
     const handleCancel = () => {
-        navigate('/home2');
+        navigate('/checkin');
     }
 
     const options = [
@@ -177,7 +184,7 @@ function Leave() {
 
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>ทำคำร้องออกนอกสถานที่</h5>
+            <h5>คำร้องปฏิบัติงานนอกสถานที่</h5>
             <div>
                 <p>เลือกพิกัด</p>
                 {userLocation && (

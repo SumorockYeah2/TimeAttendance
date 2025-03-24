@@ -26,8 +26,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
-  const username = "John Doe";
-  const role = "Admin";
+  const [username, setUsername] = useState('');
+  const role = "HR";
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true')
 
@@ -41,15 +41,21 @@ function App() {
       setIsLoggedIn(loggedIn);
       if (!loggedIn) {
         setSidebarVisible(false);
+        setUsername('');
+      } else {
+        const user = JSON.parse(localStorage.getItem('user'));
+        setUsername(user?.name || '');
       }
-    }
+    };
 
+    handleStorageChange();
+    
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-    }
-  }, [])
+    };
+  }, []);
 
   return (
     <Router>
@@ -69,7 +75,7 @@ function App() {
           <div className={`content ${sidebarVisible ? 'with-sidebar' : ''}`}>
             <Routes>
               <Route path="/login" element={<Login />} />
-              <Route path="/dashboard" element={isLoggedIn ? <Dashboard /> : <Navigate to ="/login" />} />
+              <Route path="/dashboard" element={isLoggedIn ? <Dashboard role={role} /> : <Navigate to ="/login" />} />
               {/* <Route path="/location" element={isLoggedIn ? <Location /> : <Navigate to ="/login" />} /> */}
               <Route path="/checkin" element={isLoggedIn ? <Checkin /> : <Navigate to ="/login" />} />
               <Route path="/checkout" element={isLoggedIn ? <Checkout /> : <Navigate to ="/login" />} />

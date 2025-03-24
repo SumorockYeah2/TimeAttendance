@@ -33,19 +33,38 @@ db.connect((err) => {
 app.post('/checkin', (req, res) => {
     console.log('Request body:', req.body);
 
-    const { userLocation, selectedOption, textInput, checkInDateTime, checkOutDateTime, uploadedFilePath } = req.body;
+    const { idemployees, userLocation, place_name, selectedOption, textInput, checkInDateTime, checkOutDateTime, uploadedFilePath } = req.body;
 
-    const query = `INSERT INTO attendance (location, jobID, description, in_time, out_time, image_url) VALUES (?, ?, ?, ?, ?, ?)`;
-    const values = [JSON.stringify(userLocation), selectedOption, textInput, checkInDateTime, checkOutDateTime, uploadedFilePath];
+    // Query to fetch jobID based on the selected job name
+    const jobQuery = `SELECT jobID FROM job_assignments WHERE jobname = ?`;
 
-    db.query(query, values, (err, result) => {
+    db.query(jobQuery, [selectedOption], (err, jobResult) => {
         if (err) {
-            console.error('Error inserting check-in data:', err.stack);
-            res.status(500).send('Error inserting check-in data');
+            console.error('Error fetching jobID:', err.stack);
+            res.status(500).send('Error fetching jobID');
             return;
-        } else {
-            res.status(200).send('Check-in data inserted successfully');
         }
+
+        if (jobResult.length === 0) {
+            res.status(404).send('Job not found');
+            return;
+        }
+
+        const jobID = jobResult[0].jobID;
+
+        // Insert check-in data into the attendance table
+        const query = `INSERT INTO attendance (idemployees, jobID, location, place_name, jobType, description, in_time, out_time, image_url, isCheckedIn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        const values = [idemployees, jobID, JSON.stringify(userLocation), place_name, selectedOption, textInput, checkInDateTime, checkOutDateTime, uploadedFilePath, 1];
+
+        db.query(query, values, (err, result) => {
+            if (err) {
+                console.error('Error inserting check-in data:', err.stack);
+                res.status(500).send('Error inserting check-in data');
+                return;
+            } else {
+                res.status(200).send('Check-in data inserted successfully');
+            }
+        });
     });
 });
 
@@ -54,7 +73,17 @@ app.post('/checkout', (req, res) => {
 
     const { selectedOption, checkOutDateTime } = req.body;
 
-    const query = `UPDATE attendance SET out_time = ? WHERE jobID = ? AND out_time = 'Pending'`;
+    const query = `
+        UPDATE attendance 
+        SET out_time = ?, isCheckedIn = 0
+        WHERE jobID = (
+            SELECT jobID 
+            FROM job_assignments 
+            WHERE jobname = ? 
+            LIMIT 1
+        ) 
+        AND isCheckedIn = 1
+    `;
     const values = [checkOutDateTime, selectedOption];
 
     db.query(query, values, (err, result) => {
@@ -72,15 +101,15 @@ app.post('/checkout', (req, res) => {
 app.post('/request-send', (req, res) => {
     console.log('Request body:', req.body);
 
-    const { leaveType, leaveStartDate, leaveStartTime, leaveEndDate, leaveEndTime, leaveDescription, leaveLocation, OffsitePlace, leaveStatus } = req.body;
+    const { idemployees, leaveType, leaveStartDate, leaveStartTime, leaveEndDate, leaveEndTime, leaveDescription, leaveLocation, OffsitePlace, leaveStatus } = req.body;
 
     if (!leaveType || !leaveStartDate || !leaveStartTime || !leaveEndDate || !leaveEndTime || !leaveDescription || !leaveLocation || !OffsitePlace || !leaveStatus) {
         console.error('Missing required fields');
         return res.status(400).send('Missing required fields');
     }
 
-    const query = `INSERT INTO requests (leaveType, start_date, start_time, end_date, end_time, reason, location, place_name, status ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    const values = [leaveType, leaveStartDate, leaveStartTime, leaveEndDate, leaveEndTime, leaveDescription, leaveLocation, OffsitePlace, leaveStatus];
+    const query = `INSERT INTO requests (idemployees, leaveType, start_date, start_time, end_date, end_time, reason, location, place_name, status ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    const values = [idemployees, leaveType, leaveStartDate, leaveStartTime, leaveEndDate, leaveEndTime, leaveDescription, leaveLocation, OffsitePlace, leaveStatus];
 
     db.query(query, values, (err, result) => {
         if (err) {
@@ -196,7 +225,12 @@ app.post('/login', (req, res) => {
         return res.status(400).send('Username and password are required');
     }
 
-    const query = `SELECT * FROM users WHERE username = ? AND password = ?`;
+    const query = `
+        SELECT uc.idemployees, uc.username, e.name, uc.role
+        FROM user_credentials uc
+        JOIN employees e ON uc.idemployees = e.idemployees
+        WHERE uc.username = ? AND uc.password = ?
+    `;
     const values = [username, password];
 
     db.query(query, values, (err, results) => {
@@ -400,16 +434,283 @@ app.post('/jobs', (req, res) => {
 app.get('/get-assigned-jobs/:employeeID', (req, res) => {
     const employeeID = req.params.employeeID;
 
-    const query = `SELECT jobname, latitude, longitude, gps_radius FROM job_assignments WHERE idemployees = ?`;
-    db.query(query, [employeeID], (err, results) => {
+    const currentDate = new Date();
+    const currentDay = currentDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    const currentTime = currentDate.toTimeString().split(' ')[0]; // Format: HH:MM:SS
+    const currentWeekday = currentDate.toLocaleString('en-US', { weekday: 'long' }); // e.g., "Monday"
+
+    const query = `
+        SELECT jobID, jobname, latitude, longitude, gps_radius, weekdays, start_date, start_time, end_date, end_time
+        FROM job_assignments
+        WHERE idemployees = ?
+        AND (
+            (start_date IS NOT NULL AND end_date IS NOT NULL AND start_date <= ? AND end_date >= ?  AND start_time <= ? AND end_time >= ?)
+            OR
+            (weekdays IS NOT NULL AND FIND_IN_SET(?, weekdays) > 0 AND start_time <= ? AND end_time >= ?)
+        )
+        
+    `;
+
+    const values = [employeeID, currentDay, currentDay, currentTime, currentTime, currentWeekday, currentTime, currentTime];
+
+    console.log('Query:', query);
+    console.log('Values:', values);
+
+    db.query(query, values, (err, results) => {
         if (err) {
             console.error('Error fetching job assignments:', err.stack);
             res.status(500).send('Error fetching job assignments');
+        } else {
+            console.log('All jobs:', results);
+            res.status(200).json(results); // ส่งข้อมูลทั้งหมดกลับไปยัง frontend
+        }
+    });
+});
+
+app.get('/get-checked-in-jobs/:employeeID', (req, res) => {
+    const employeeID = req.params.employeeID;
+
+    const query = `
+        SELECT ja.*
+        FROM job_assignments ja
+        INNER JOIN attendance a ON ja.jobID = a.jobID
+        WHERE a.idemployees = ? AND a.isCheckedIn = '1'
+    `;
+
+    db.query(query, [employeeID], (err, results) => {
+        if (err) {
+            console.error('Error fetching checked-in jobs:', err.stack);
+            res.status(500).send('Error fetching checked-in jobs');
+        } else {
+            console.log('Fetched checked-in jobs:', results);
+            res.status(200).json(results);
+        }
+    });
+});
+
+app.post('/jobs-office', (req, res) => {
+    console.log('Request body:', req.body);
+
+    const { employeeId, jobName, jobDesc, weekdays, startTime, endTime, latitude, longitude, radius } = req.body;
+
+    if (!employeeId || !jobName || !jobDesc || !weekdays) {
+        return res.status(400).send('All fields are required');
+    }
+
+    // Query to find the next available jobID
+    const getNextJobIDQuery = `
+        SELECT jobID 
+        FROM job_assignments 
+        WHERE jobID LIKE 'OF%' 
+        ORDER BY jobID DESC 
+        LIMIT 1
+    `;
+
+    db.query(getNextJobIDQuery, (err, results) => {
+        if (err) {
+            console.error('Error fetching job IDs:', err.stack);
+            res.status(500).send('Error fetching job IDs');
+            return;
+        }
+
+        let nextJobID = 'OF01'; // Default jobID if no existing IDs are found
+        if (results.length > 0) {
+            const lastJobID = results[0].jobID;
+            const lastNumber = parseInt(lastJobID.substring(2), 10); // Extract the numeric part
+            nextJobID = `OF${String(lastNumber + 1).padStart(2, '0')}`; // Increment and pad with leading zeros
+        }
+
+        // Insert the new job with the generated jobID
+        const insertJobQuery = `
+            INSERT INTO job_assignments (jobID, idemployees, jobname, jobdesc, weekdays, start_time, end_time, latitude, longitude, gps_radius)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        const values = [nextJobID, employeeId, jobName, jobDesc, weekdays, startTime, endTime, latitude, longitude, radius];
+
+        db.query(insertJobQuery, values, (err, result) => {
+            if (err) {
+                console.error('Error inserting office job data:', err.stack);
+                res.status(500).send('Error inserting office job data');
+            } else {
+                res.status(200).send('Office job data inserted successfully');
+            }
+        });
+    });
+    // const query = `
+    //     INSERT INTO job_assignments (idemployees, jobname, jobdesc, weekdays, start_time, end_time, latitude, longitude, gps_radius)
+    //     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    // `;
+    // const values = [employeeId, jobName, jobDesc, weekdays, startTime, endTime, latitude, longitude, radius];
+
+    // db.query(query, values, (err, result) => {
+    //     if (err) {
+    //         console.error('Error inserting office job data:', err.stack);
+    //         res.status(500).send('Error inserting office job data');
+    //     } else {
+    //         res.status(200).send('Office job data inserted successfully');
+    //     }
+    // });
+});
+
+app.post('/add-job', (req, res) => {
+    console.log('Request body:', req.body);
+    const { jobID, idemployees, jobname, jobdesc, latitude, longitude, radius, start_date, start_time, end_date, end_time } = req.body;
+
+    if (!idemployees || !jobname || !jobdesc || !latitude || !longitude || !radius) {
+        return res.status(400).send('All fields are required');
+    }
+
+    const query = `
+        INSERT INTO job_assignments (jobID, idemployees, jobname, jobdesc, latitude, longitude, gps_radius, start_date, start_time, end_date, end_time)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    const values = [jobID, idemployees, jobname, jobdesc, latitude, longitude, radius, start_date, start_time, end_date, end_time];
+
+    db.query(query, values, (err, result) => {
+        if (err) {
+            console.error('Error inserting job:', err.stack);
+            res.status(500).send('Error inserting job');
+        } else {
+            res.status(200).send('Job added successfully');
+        }
+    });
+});
+
+app.get('/get-next-job-id', (req, res) => {
+    const getLastJobIDQuery = `
+        SELECT jobID 
+        FROM job_assignments 
+        WHERE jobID LIKE 'OUT%' 
+        ORDER BY jobID DESC 
+        LIMIT 1
+    `;
+
+    db.query(getLastJobIDQuery, (err, results) => {
+        if (err) {
+            console.error('Error fetching job IDs:', err.stack);
+            res.status(500).send('Error fetching job IDs');
+            return;
+        }
+
+        let nextJobID = 'OUT01'; // Default jobID if no existing IDs are found
+        if (results.length > 0) {
+            const lastJobID = results[0].jobID;
+            const lastNumber = parseInt(lastJobID.substring(3), 10); // Extract the numeric part
+            nextJobID = `OUT${String(lastNumber + 1).padStart(2, '0')}`; // Increment and pad with leading zeros
+        }
+
+        res.status(200).json({ nextJobID });
+    });
+});
+
+app.post('/late-checkin', (req, res) => {
+    console.log('Request body:', req.body);
+
+    const { idemployees, jobID, jobType, userLocation, place_name, textInput, checkInDateTime, checkOutDateTime, uploadedFilePath } = req.body;
+
+    // Insert leave data into the attendance table
+    const query = `
+        INSERT INTO attendance (idemployees, jobID, jobType, location, place_name, description, in_time, out_time, image_url, isCheckedIn)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    const values = [
+        idemployees,
+        'LATE', // Fixed jobID for late check-ins
+        'คำร้องย้อนหลัง',
+        JSON.stringify(userLocation),
+        place_name || 'none',
+        textInput,
+        checkInDateTime,
+        checkOutDateTime,
+        uploadedFilePath,
+        0 // Mark as checked-in
+    ];
+
+    db.query(query, values, (err, result) => {
+        if (err) {
+            console.error('Error inserting leave-checkin data:', err.stack);
+            res.status(500).send('Error inserting leave-checkin data');
+            return;
+        } else {
+            res.status(200).send('Leave-checkin data inserted successfully');
+        }
+    });
+});
+
+app.get('/orglist', (req, res) => {
+    const query = `
+        SELECT DISTINCT iddep, depname, divname
+        FROM orglist
+        WHERE depname IS NOT NULL AND depname != ''
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching orglist data:', err.stack);
+            res.status(500).send('Error fetching orglist data');
+        } else {
+            // Group divisions under their respective departments
+            const groupedData = results.reduce((acc, row) => {
+                const { iddep, depname, divname } = row;
+                if (!acc[depname]) {
+                    acc[depname] = { iddep, divisions: [] };
+                }
+                if (divname) {
+                    acc[depname].divisions.push(divname);
+                }
+                return acc;
+            }, {});
+
+            // Convert grouped data to an array
+            const response = Object.keys(groupedData).map(depname => ({
+                iddep: groupedData[depname].iddep,
+                depname,
+                divisions: groupedData[depname].divisions
+            }));
+
+            res.status(200).json(response);
+        }
+    });
+});
+
+app.get('/employee-search', (req, res) => {
+    const { department, division } = req.query;
+
+    console.log('Query Parameters:', { department, division });
+
+    let query = `
+        SELECT e.idemployees, e.name, e.department, e.division, o.depname AS department_name, o.divname AS division_name
+        FROM employees e
+        INNER JOIN orglist o ON e.department = o.depname AND e.division = o.divname
+        WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (department) {
+        query += ` AND o.depname = ?`;
+        params.push(department);
+    }
+
+    if (division) {
+        query += ` AND o.divname = ?`;
+        params.push(division);
+    }
+
+    console.log('SQL Query:', query);
+    console.log('Parameters:', params);
+
+    db.query(query, params, (err, results) => {
+        if (err) {
+            console.error('Error fetching filtered employee data:', err.stack);
+            res.status(500).send('Error fetching filtered employee data');
         } else {
             res.status(200).json(results);
         }
     });
 });
+
+
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);

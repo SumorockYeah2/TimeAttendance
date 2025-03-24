@@ -126,7 +126,7 @@ function Home2() {
                 {isCheckedIn ? (
                     <button className="btn btn-success" onClick={handleCheckOut}>ลงเวลาออก</button>
                 ) : (
-                    <button className="btn btn-success" onClick={handleCheckIn} disabled={!isWithinRadius}>ลงเวลาเข้า</button>
+                    <button className="btn btn-success" onClick={handleCheckIn}>ลงเวลาเข้า</button>
                 )}
                 <button className="btn btn-primary" onClick={handleRequest}>ทำคำร้อง</button>
                 {showDropdown && (
@@ -135,9 +135,9 @@ function Home2() {
                         <a className="dropdown-item" href="/offsite">คำร้องออกนอกสถานที่</a>
                     </div>
                 )}
-                {!isCheckedIn && !isWithinRadius && <p style={{ color: 'red' }}>
+                {/* {!isCheckedIn && !isWithinRadius && <p style={{ color: 'red' }}>
                     ท่านไม่สามารถลงเวลาเข้างานได้ เนื่องจากไม่ได้อยู่ภายในรัศมีที่กำหนดไว้ในระบบ<br />กรุณาเดินทางเข้าใกล้สถานที่ตามพิกัดที่ได้รับมอบหมายแล้วลองอีกครั้ง
-                </p>}
+                </p>} */}
             </div>
         </div>
     );
