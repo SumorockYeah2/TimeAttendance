@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css'; // Import Leaflet's CSS
 import L from 'leaflet';
-import Dropdown from 'react-dropdown';
 import 'react-dropdown/style.css';
 
 import DatePicker from 'react-datepicker';
@@ -12,12 +11,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
 import { useMap } from 'react-leaflet/hooks';
 import 'leaflet-geosearch/dist/geosearch.css';
-// delete L.Icon.Default.prototype._getIconUrl;
-// L.Icon.Default.mergeOptions({
-//   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-//   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-//   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-// });
+
 function SearchControl() {
     const map = useMap();
 
@@ -50,26 +44,140 @@ function SearchControl() {
 }
 
 function Leave() {
+    const API_URL = process.env.REACT_APP_API_URL;
     const navigate = useNavigate();
+
+    const combineDateAndTime = (date, time) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        const combined = new Date(date);
+        combined.setHours(hours, minutes, 0, 0); // ตั้งค่าเวลาเป็น Local Time
+        return combined;
+    };
+
+    const checkAttendanceOverlap = async () => {
+        const idemployees = localStorage.getItem('idemployees');
+        if (!idemployees) {
+            console.error('ไม่พบข้อมูลรหัสพนักงานในระบบ');
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/attendance`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+    
+            if (!response.ok) {
+                console.error('Error fetching attendance data:', response.statusText);
+                return false;
+            }
+    
+            const attendanceRecords = await response.json();
+            const startDateTime = combineDateAndTime(startDate, startTime);
+            const endDateTime = combineDateAndTime(endDate, endTime);
+    
+            console.log('Checking attendance overlap with:');
+            console.log('Start DateTime:', startDateTime);
+            console.log('End DateTime:', endDateTime);
+            console.log('Attendance Records:', attendanceRecords);
+            // ตรวจสอบว่าช่วงเวลาชนกับการลงเวลาเข้างาน
+            const hasOverlap = attendanceRecords.some((record) => {
+                return (
+                    record.idemployees === idemployees &&
+                    (
+                        (new Date(record.in_time) <= startDateTime && new Date(record.out_time) >= startDateTime) ||
+                        (new Date(record.in_time) <= endDateTime && new Date(record.out_time) >= endDateTime) ||
+                        (new Date(record.in_time) >= startDateTime && new Date(record.out_time) <= endDateTime)
+                    )
+                );
+            });
+    
+            return hasOverlap;
+        } catch (error) {
+            console.error('Error checking attendance overlap:', error);
+            return false;
+        }
+    };
+
+    const checkLeaveOverlap = async () => {
+        const idemployees = localStorage.getItem('idemployees');
+        if (!idemployees) {
+            alert('ไม่พบข้อมูลรหัสพนักงานในระบบ');
+            return;
+        }
+        try {
+            const response = await fetch(`${API_URL}/request-get`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+    
+            if (!response.ok) {
+                console.error('Error fetching leave requests:', response.statusText);
+                return false;
+            }
+    
+            const leaveRequests = await response.json();
+            const startDateTime = combineDateAndTime(startDate, startTime);
+            const endDateTime = combineDateAndTime(endDate, endTime);
+    
+            console.log('Checking leave overlap with:');
+            console.log('Start DateTime:', startDateTime);
+            console.log('End DateTime:', endDateTime);
+            console.log('Leave Requests:', leaveRequests);
+
+            // ตรวจสอบว่าช่วงเวลาชนกับคำร้องลาที่อนุมัติแล้ว
+            const hasOverlap = leaveRequests.some((request) => {
+                return (
+                    request.idemployees === idemployees &&
+                    ['ลากิจ', 'ลาป่วย', 'ลาพักร้อน'].includes(request.leaveType) &&
+                    request.status === 'อนุมัติแล้ว' &&
+                    (
+                        (new Date(`${request.start_date}T${request.start_time}`) <= startDateTime &&
+                         new Date(`${request.end_date}T${request.end_time}`) >= startDateTime) ||
+                        (new Date(`${request.start_date}T${request.start_time}`) <= endDateTime &&
+                         new Date(`${request.end_date}T${request.end_time}`) >= endDateTime) ||
+                        (new Date(`${request.start_date}T${request.start_time}`) >= startDateTime &&
+                         new Date(`${request.end_date}T${request.end_time}`) <= endDateTime)
+                    )
+                );
+            });
+    
+            return hasOverlap;
+        } catch (error) {
+            console.error('Error checking leave overlap:', error);
+            return false;
+        }
+    };
 
     const formatDate = (date) => {
         return date.toISOString().split('T')[0];
     };
 
     const handleCheckIn = async () => {
-        // console.log(userLocation, OffsitePlace, formatDate(startDate), startTime, formatDate(endDate), endTime, supervisor, description);
-
-        if (!userLocation || !OffsitePlace || !startDate || !startTime || !endDate || !endTime || !description ) {
+        if (!userLocation || !OffsitePlace || !startDate || !startTime || !endDate || !endTime || !description) {
             alert('โปรดกรอกข้อมูลให้ครบทั้งหมดทุกช่องก่อน');
             return;
         }
 
         const startDateTime = new Date(`${formatDate(startDate)}T${startTime}`);
         const endDateTime = new Date(`${formatDate(endDate)}T${endTime}`);
+        const currentDateTime = new Date();
 
-        if (startDateTime >= endDateTime) {
-            alert('วันที่-เวลาเริ่มต้นเป็นวันที่-เวลาซึ่งอยู่หลังจากวันที่-เวลาสิ้นสุด โปรดระบุใหม่ให้ถูกต้อง');
-            return;
+        if (isLate) {
+            if (startDateTime > currentDateTime || endDateTime > currentDateTime) {
+                alert('คำร้องย้อนหลังต้องเป็นวันที่และเวลาก่อนปัจจุบัน');
+                return;
+            }
+        } else {
+            // ตรวจสอบงานนอกสถานที่ (ไม่ต้องแจ้งเตือน)
+            if (startDateTime >= endDateTime) {
+                alert('วันที่และเวลาเริ่มต้น อยู่หลังจากวันที่และเวลาสิ้นสุด โปรดระบุใหม่ให้ถูกต้อง');
+                return;
+            }
         }
 
         const idemployees = localStorage.getItem('idemployees');
@@ -78,16 +186,30 @@ function Leave() {
             return;
         }
 
+        const hasAttendanceOverlap = await checkAttendanceOverlap();
+        if (hasAttendanceOverlap) {
+            alert('ไม่สามารถส่งคำร้องได้ เนื่องจากชนกับช่วงเวลาที่ลงเวลาเข้างาน');
+            return;
+        }
+
+        // ตรวจสอบการชนกับคำร้องลาที่อนุมัติแล้ว
+        const hasLeaveOverlap = await checkLeaveOverlap();
+        if (hasLeaveOverlap) {
+            alert('ไม่สามารถส่งคำร้องได้ เนื่องจากชนกับช่วงเวลาที่ลางาน');
+            return;
+        }
+
+        const leaveType = isLate ? "คำร้องย้อนหลัง" : "งานนอกสถานที่";
+
         const newLeaveRequest = {
             idemployees,
-            leaveType: "งานนอกสถานที่",
+            leaveType,
             leaveLocation: JSON.stringify(userLocation),
             OffsitePlace,
             leaveStartDate: formatDate(startDate),
             leaveStartTime: startTime,
             leaveEndDate: formatDate(endDate),
             leaveEndTime: endTime,
-            // supervisor,
             leaveDescription: description,
             leaveStatus: "รออนุมัติ"
         };
@@ -95,37 +217,58 @@ function Leave() {
         console.log('Sending leave request:', newLeaveRequest);
 
         try {
-            const response = await fetch('http://localhost:3001/request-send', {
+            const response = await fetch(`${API_URL}/request-send`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(newLeaveRequest)
             });
-    
-            console.log('Response status:', response.status);
-            console.log('Response status text:', response.statusText);
 
             if (response.ok) {
-                alert("ทำคำร้องเรียบร้อย");
-                navigate('/checkin');
+                if (leaveType === "งานนอกสถานที่") {
+                    const newJob = {
+                        employeeId: idemployees,
+                        jobID: "OUT01",
+                        jobName: `งานนอกสถานที่ (${OffsitePlace})`,
+                        jobDesc: description,
+                        startDate: formatDate(startDate),
+                        startTime,
+                        endDate: formatDate(endDate),
+                        endTime,
+                        latitude: userLocation.latitude,
+                        longitude: userLocation.longitude,
+                        place_name: OffsitePlace
+                    };
+
+                    const jobResponse = await fetch(`${API_URL}/jobs`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(newJob)
+                    });
+
+                    if (jobResponse.ok) {
+                        alert("ส่งคำร้องและเพิ่มงานเรียบร้อย");
+                        navigate('/checkin');
+                    } else {
+                        alert("ส่งคำร้องสำเร็จ แต่ไม่สามารถเพิ่มงานได้");
+                    }
+                } else {
+                    // สำหรับคำร้องย้อนหลัง
+                    alert("ส่งคำร้องเรียบร้อย");
+                    navigate('/checkin');
+                }
             } else {
                 const errorData = await response.text();
                 console.error('Error response:', errorData);
-                alert("Failed to save leave request. Please try again.");
+                alert("ไม่สามารถส่งคำร้องได้ โปรดลองอีกครั้ง");
             }
         } catch (error) {
             console.error('Error saving leave request:', error);
-            alert("Failed to save leave request. Please try again.");
+            alert("เกิดข้อผิดพลาดขณะส่งคำร้อง โปรดลองอีกครั้ง");
         }
-        // const existingRequests = JSON.parse(localStorage.getItem('leaveData')) || [];
-
-        // existingRequests.push(newLeaveRequest);
-
-        // localStorage.setItem('leaveData', JSON.stringify(existingRequests));
-
-        // alert("ทำคำร้องเรียบร้อย");
-        // navigate('/home2'); // Navigate to /checkin
     };
 
     const handleCancel = () => {
@@ -136,21 +279,15 @@ function Leave() {
         { value: 'one', label: 'one' },
         { value: 'two', label: 'two' }
     ]
-    const DefaultOption = options[0].value;
-    const _onSelect = (selectedOption) => {
-        console.log(selectedOption);
-    };
 
     const [description, setDescription] = useState('');
-    const [supervisor, setSupervisor] = useState('');
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
 
+    const [isLate, setIsLate] = useState(false);
     const [OffsitePlace, setOffsitePlace] = useState('');
-
-    //////location///
     const [userLocation, setUserLocation] = useState(null);
 
     const getUserLocation = () => {
@@ -185,14 +322,10 @@ function Leave() {
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>คำร้องปฏิบัติงานนอกสถานที่</h5>
-            <div>
+            <div>                
                 <p>เลือกพิกัด</p>
                 {userLocation && (
                     <div>
-                        {/* <p>User Location</p>
-                        <p>Latitude: {userLocation.latitude}</p>
-                        <p>Longitude: {userLocation.longitude}</p> */}
-    
                         <MapContainer
                             center={[userLocation.latitude, userLocation.longitude]}
                             zoom={13}
@@ -268,16 +401,6 @@ function Leave() {
                     />
                 </div>
             </div>
-            {/* <div>
-                <p>หัวหน้า</p>
-                <input
-                    type="text"
-                    className="form-control"
-                    value={supervisor}
-                    onChange={(e) => setSupervisor(e.target.value)}
-                    style={{ width: '330px' }}
-                />
-            </div> */}
             <div>
                 <p>ระบุสาเหตุ</p>
                 <input
@@ -288,6 +411,16 @@ function Leave() {
                     style={{ width: '330px' }}
                 />
             </div>
+
+            <label>
+                    <input
+                        type="checkbox"
+                        name="late"
+                        checked={isLate}
+                        onChange={(e) => setIsLate(e.target.checked)}
+                    />
+                    คำร้องย้อนหลัง
+                </label>
 
             <div style={{ paddingTop: '10px' }}>
                 <button className="btn btn-success" onClick={handleCheckIn}>ส่งคำร้อง</button>

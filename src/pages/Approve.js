@@ -2,49 +2,236 @@ import React, {useState, useEffect} from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Approve({ role }) {
+    const API_URL = process.env.REACT_APP_API_URL;
     const [leaveData, setLeaveData] = useState([]);
+    const [subordinates, setSubordinates] = useState([]);
     const navigate = useNavigate();
 
-    const fetchLeaveData = () => {
-        fetch('http://localhost:3001/request-get')
-            .then(response => response.json())
-            .then(data => {
-                console.log('leaveData from database:', data);
-                setLeaveData(data);
-            })
-            .catch(error => {
-                console.error('Error fetching leave data:', error);
-            });
-    };
-
-    useEffect(() => {
-        fetchLeaveData();
-    }, []);
-    
-    // useEffect(() => {
-    //     fetch('http://localhost:3001/request-get')
+    // const fetchLeaveData = () => {
+    //     fetch('https://localhost:3001/request-get')
     //         .then(response => response.json())
     //         .then(data => {
+    //             console.log('Role:', role);
+    //             console.log('Subordinates:', subordinates);
     //             console.log('leaveData from database:', data);
-    //             setLeaveData(data);
+    //             if (role === 'Admin') {
+    //                 setLeaveData(data);
+    //             } else {
+    //                 const filteredLeaveData = data.filter(request => subordinates.includes(request.idemployees));
+    //                 console.log('Filtered Leave Data:', filteredLeaveData);
+    //                 setLeaveData(filteredLeaveData);
+    //             }
     //         })
     //         .catch(error => {
     //             console.error('Error fetching leave data:', error);
     //         });
-    // }, []);
-    
+    // };
+
+
+    // const fetchSubordinates = () => {
+    //     fetch(`https://localhost:3001/employee-data`)
+    //         .then(response => response.json())
+    //         .then(data => {
+    //             const filteredEmployees = data.filter(emp => emp.supervisor === idemployees); // กรองพนักงานที่ supervisor ตรงกับ idemployees
+    //             setSubordinates(filteredEmployees.map(emp => emp.idemployees)); // เก็บเฉพาะ idemployees ของพนักงาน
+    //         })
+    //         .catch(error => {
+    //             console.error('Error fetching employee data:', error);
+    //         });
+    // };
+
     // useEffect(() => {
-    //     const leaveData = JSON.parse(localStorage.getItem('leaveData')) || [];
-    //     console.log('leaveData from localStorage:', leaveData);
-    //     setLeaveData(leaveData);
+    //     if (subordinates.length > 0) {
+    //         fetchLeaveData(); // ดึงข้อมูลคำร้องลาเมื่อได้ข้อมูลพนักงานที่ตัวเองเป็นหัวหน้า
+    //     }
+    // }, [subordinates]);
+
+    // useEffect(() => {
+    //     fetchSubordinates(); // ดึงข้อมูลพนักงานที่ตัวเองเป็นหัวหน้า
     // }, []);
 
-    const handleApprove = (index) => {
-        const updatedLeaveData = [...leaveData];
-        updatedLeaveData[index].leaveStatus = "อนุมัติแล้ว";
-        setLeaveData(updatedLeaveData);
+    const [holidays, setHolidays] = useState([]);
 
-        fetch(`http://localhost:3001/request-update/${updatedLeaveData[index].idrequests}`, {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const idemployees = user?.idemployees;
+    console.log('Logged-in User ID:', idemployees);
+    console.log('Role:', role);
+
+    useEffect(() => {
+        const fetchHolidays = async () => {
+            const API_KEY = 'YOUR_GOOGLE_API_KEY'; // ใส่ Google API Key ของคุณที่นี่
+            const CALENDAR_ID = 'th.th#holiday@group.v.calendar.google.com';
+            const BASE_URL = `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events`;
+    
+            try {
+                const params = new URLSearchParams({
+                    key: API_KEY,
+                    singleEvents: true,
+                    orderBy: 'startTime',
+                });
+    
+                const response = await fetch(`${BASE_URL}?${params}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const filteredHolidays = data.items.filter(
+                        (holiday) => holiday.description === "วันหยุดนักขัตฤกษ์"
+                    );
+                    setHolidays(filteredHolidays || []);
+                } else {
+                    console.error('Failed to fetch holidays from Google Calendar');
+                }
+            } catch (error) {
+                console.error('Error fetching holidays from Google Calendar:', error);
+            }
+        };
+    
+        fetchHolidays();
+    }, []);
+
+    const fetchSubordinatesAndLeaveData = async () => {
+        try {
+            const response = await fetch(`${API_URL}/employee-data`);
+            const data = await response.json();
+            console.log('Employee Data:', data);
+
+            console.log('Logged-in User ID (idemployees):', idemployees, typeof idemployees);
+            console.log('Employee Supervisors:', data.map(emp => emp.supervisor), typeof data[0]?.supervisor);
+
+            const filteredEmployees = data.filter(emp => emp.supervisor === Number(idemployees));
+            const subordinates = filteredEmployees.map(emp => emp.idemployees);
+
+            console.log('Filtered Employees:', filteredEmployees);
+            console.log('Subordinates:', subordinates);
+            setSubordinates(subordinates);
+
+            const leaveResponse = await fetch(`${API_URL}/request-get`);
+            const leaveData = await leaveResponse.json();
+
+            console.log('Leave Data from database:', leaveData);
+
+            if (role === 'Admin' || role === 'HR') {
+                setLeaveData(leaveData);
+            } else {
+                const filteredLeaveData = leaveData.filter(request => subordinates.includes(Number(request.idemployees)));
+                console.log('Filtered Leave Data:', filteredLeaveData);
+                setLeaveData(filteredLeaveData);
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchSubordinatesAndLeaveData();
+    }, [role, idemployees]);
+
+
+    const calculateWorkingHours = (start, end) => {
+        console.log('Start:', start);
+        console.log('End:', end);
+
+        let totalHours = 0;
+
+        while (start < end) {
+            const workStart = new Date(start);
+            workStart.setHours(8, 30, 0, 0);
+            const workEnd = new Date(start);
+            workEnd.setHours(17, 30, 0, 0);
+
+            const isWeekend = start.getDay() === 0 || start.getDay() === 6;
+            const isHoliday = holidays.some(
+                (holiday) => new Date(holiday.start.date).toDateString() === start.toDateString()
+            );
+
+            if (isWeekend || isHoliday) {
+                console.log('Skipping holiday or weekend:', start);
+                start.setDate(start.getDate() + 1);
+                start.setHours(8, 30, 0, 0);
+                continue;
+            }
+
+            if (start < workStart) {
+                console.log('Adjusting start time from', start, 'to', workStart);
+                start = workStart;
+            }
+
+            if (start >= workStart && start < workEnd) {
+                // คำนวณช่วงเช้า (08:30 - 12:00)
+                if (start.getHours() >= 8 && start.getHours() < 12) {
+                    const morningEnd = new Date(start);
+                    morningEnd.setHours(12, 0, 0, 0);
+                    const morningHours = Math.min((morningEnd - start) / (1000 * 60 * 60), (end - start) / (1000 * 60 * 60));
+                    totalHours += morningHours;
+                    console.log('Morning hours:', morningHours);
+                    start = morningEnd; // เลื่อนไปยังช่วงบ่าย
+                }
+    
+                if (start.getHours() === 12) {
+                    start.setHours(13, 0, 0, 0); // ข้ามช่วงพักเที่ยงไป 13:00
+                }
+
+                if (start.getHours() >= 13 && start < workEnd && start < end) {
+                    const afternoonEnd = new Date(start);
+                    afternoonEnd.setHours(17, 30, 0, 0);
+                    const afternoonHours = Math.min((afternoonEnd - start) / (1000 * 60 * 60), (end - start) / (1000 * 60 * 60));
+
+                    if (afternoonHours > 0) {
+                        totalHours += afternoonHours;
+                        console.log('Afternoon hours:', afternoonHours);
+                    } else {
+                        console.log('Skipping afternoon calculation as hours are negative or zero');
+                    }
+
+                    start = afternoonEnd; // เลื่อนไปยังวันถัดไป
+                }
+            }
+
+            // ข้ามไปวันถัดไป
+            start.setDate(start.getDate() + 1);
+            start.setHours(8, 30, 0, 0);
+        }
+
+        console.log('Calculated working hours:', totalHours);
+        return totalHours;
+    };
+
+    const handleApprove = async (idrequests) => {
+        const approvedRequest = leaveData.find(el => el.idrequests === idrequests);
+        if (!approvedRequest) return;
+    
+        const startDateTime = new Date(`${approvedRequest.start_date}T${approvedRequest.start_time}`);
+        const endDateTime = new Date(`${approvedRequest.end_date}T${approvedRequest.end_time}`);
+        
+        const leaveHours = calculateWorkingHours(startDateTime, endDateTime, holidays);
+        const leaveDays = leaveHours / 8;
+    
+        let leaveTypeColumn;
+        if (approvedRequest.leaveType === 'ลากิจ') {
+            leaveTypeColumn = 'absence_hrs';
+        } else if (approvedRequest.leaveType === 'ลาป่วย') {
+            leaveTypeColumn = 'sick_hrs';
+        } else if (approvedRequest.leaveType === 'ลาพักร้อน') {
+            leaveTypeColumn = 'vacation_hrs';
+        }
+    
+        if (leaveTypeColumn) {
+            const updateLeaveBalanceResponse = await fetch(`${API_URL}/leave-balance-update/${approvedRequest.idemployees}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    [leaveTypeColumn]: -leaveHours
+                })
+            });
+    
+            if (!updateLeaveBalanceResponse.ok) {
+                alert('ไม่สามารถอัปเดตวันลาได้');
+                return;
+            }
+        }
+
+        fetch(`${API_URL}/request-update/${idrequests}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -52,25 +239,23 @@ function Approve({ role }) {
             body: JSON.stringify({ status: "อนุมัติแล้ว" })
         })
         .then(response => {
-            console.log('Response from server:', response);
             if (response.ok) {
-                alert(`อนุมัติคำร้องที่ ${index + 1} เรียบร้อย`);
-                fetchLeaveData();
+                alert(`อนุมัติคำร้องสำเร็จ`);
+                setLeaveData(prevData => prevData.filter(el => el.idrequests !== idrequests));
 
-                if (updatedLeaveData[index].leaveType === "คำร้องย้อนหลัง") {
+                const approvedRequest = leaveData.find(el => el.idrequests === idrequests);
+                if (approvedRequest && approvedRequest.leaveType === "คำร้องย้อนหลัง") {
                     const attendanceData = {
-                        idemployees: updatedLeaveData[index].idemployees,
-                        userLocation: JSON.parse(updatedLeaveData[index].location),
-                        place_name: updatedLeaveData[index].place_name || 'none',
-                        textInput: updatedLeaveData[index].reason,
-                        checkInDateTime: updatedLeaveData[index].start_date + 'T' + updatedLeaveData[index].start_time,
-                        checkOutDateTime: updatedLeaveData[index].end_date + 'T' + updatedLeaveData[index].end_time,
-                        uploadedFilePath: updatedLeaveData[index].image_url || null
+                        idemployees: approvedRequest.idemployees,
+                        userLocation: JSON.parse(approvedRequest.location),
+                        place_name: approvedRequest.place_name || 'none',
+                        textInput: approvedRequest.reason,
+                        checkInDateTime: approvedRequest.start_date + 'T' + approvedRequest.start_time,
+                        checkOutDateTime: approvedRequest.end_date + 'T' + approvedRequest.end_time,
+                        uploadedFilePath: approvedRequest?.image_url || null
                     };
 
-                    console.log('Attendance data being sent:', attendanceData);
-
-                    fetch('http://localhost:3001/late-checkin', {
+                    fetch(`${API_URL}/late-checkin`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -88,70 +273,18 @@ function Approve({ role }) {
                         console.error('Error inserting late-checkin data:', error);
                     });
                 }
-            }
-            if (updatedLeaveData[index].leaveType === "งานนอกสถานที่") {
-                fetch('http://localhost:3001/get-next-job-id')
-                    .then(response => response.json())
-                    .then(data => {
-                        const nextJobID = data.nextJobID;
-
-                        const jobData = {
-                            jobID: nextJobID, // Add the generated jobID
-                            idemployees: updatedLeaveData[index].idemployees,
-                            jobname: "งานนอกสถานที่",
-                            jobdesc: updatedLeaveData[index].reason || "งานนอกสถานที่ที่ได้รับอนุมัติ",
-                            latitude: JSON.parse(updatedLeaveData[index].location).latitude,
-                            longitude: JSON.parse(updatedLeaveData[index].location).longitude,
-                            radius: 5,
-                            start_date: updatedLeaveData[index].start_date,
-                            start_time: updatedLeaveData[index].start_time,
-                            end_date: updatedLeaveData[index].end_date,
-                            end_time: updatedLeaveData[index].end_time
-                        };
-
-                        console.log("Job Data being sent:", jobData);
-
-                        // Save the jobData to the database
-                        fetch('http://localhost:3001/add-job', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(jobData)
-                        })
-                        .then(response => {
-                            if (response.ok) {
-                                console.log('Job added successfully');
-                            } else {
-                                console.error('Failed to add job');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error adding job:', error);
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error fetching next job ID:', error);
-                    });
-            }
-            else {
+            } else {
                 return response.text().then(text => { throw new Error(text) });
             }
         })
         .catch(error => {
             console.error('Error updating leave status:', error);
-            alert('Failed to update leave status. Please try again.');
+            alert('อนุมัติคำร้องไม่สำเร็จ กรุณาลองอีกครั้ง');
         });
-        // localStorage.setItem('leaveData', JSON.stringify(updatedLeaveData));
-        // alert(`อนุมัติคำร้องที่ ${index + 1} เรียบร้อย`);
     }
 
-    const handleReject = (index) => {
-        const updatedLeaveData = [...leaveData];
-        updatedLeaveData[index].leaveStatus = "ไม่อนุมัติ";
-        setLeaveData(updatedLeaveData);
-
-        fetch(`http://localhost:3001/request-update/${updatedLeaveData[index].idrequests}`, {
+    const handleReject = (idrequests) => {
+        fetch(`${API_URL}/request-update/${idrequests}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -159,21 +292,18 @@ function Approve({ role }) {
             body: JSON.stringify({ status: "ไม่อนุมัติ" })
         })
         .then(response => {
-            console.log('Response from server:', response);
             if (response.ok) {
-                alert(`ปฏิเสธคำร้องที่ ${index + 1} เรียบร้อย`);
-                fetchLeaveData();
+                alert(`ปฏิเสธคำร้องสำเร็จ`);
+                setLeaveData(prevData => prevData.filter(el => el.idrequests !== idrequests)); // Remove the rejected request from the state
             } else {
                 return response.text().then(text => { throw new Error(text) });
             }
         })
         .catch(error => {
             console.error('Error updating leave status:', error);
-            alert('Failed to update leave status. Please try again.');
+            alert('ไม่สามารถปฏิเสธคำร้องได้ กรุณาลองอีกครั้ง');
         });
-        // localStorage.setItem('leaveData', JSON.stringify(updatedLeaveData));
-        // alert(`ปฏิเสธคำร้องที่ ${index + 1} เรียบร้อย`);
-    }
+    };
 
     const handleHome = () => {
         navigate('/checkin');
@@ -182,10 +312,13 @@ function Approve({ role }) {
     const [editIndex, setEditIndex] = useState(null);
     const [editedData, setEditedData] = useState({});
     
-    const handleEdit = (index) => {
-        setEditIndex(index);
-        setEditedData( {...leaveData[index ]});
-    }
+    const handleEdit = (idrequests) => {
+        const originalIndex = leaveData.findIndex(el => el.idrequests === idrequests); // Find the original index
+        if (originalIndex !== -1) {
+            setEditIndex(originalIndex); // Set the original index for editing
+            setEditedData({ ...leaveData[originalIndex] }); // Set the data for editing
+        }
+    };
 
     const handleSave = async () => {
         const updatedData = [...leaveData];
@@ -206,7 +339,7 @@ function Approve({ role }) {
         setLeaveData(updatedData);
 
         try {
-            const response = await fetch('http://localhost:3001/leave-update', {
+            const response = await fetch(`${API_URL}/leave-update`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -270,156 +403,152 @@ function Approve({ role }) {
                         </tr>
                     </thead>
                     <tbody style={{display:'table-header-group'}}>
-                        {leaveData.map((el, index) => (
-                            <tr key={index}>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.leaveType}
-                                            onChange={(e) => handleChange('leaveType', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.leaveType
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.idemployees}
-                                            onChange={(e) => handleChange('idemployees', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.idemployees
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.location}
-                                            onChange={(e) => handleChange('location', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.location
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.place_name}
-                                            onChange={(e) => handleChange('place_name', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.place_name // ค่าจะเป็น "none"
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.start_date}
-                                            onChange={(e) => handleChange('start_date', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.start_date
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.start_time}
-                                            onChange={(e) => handleChange('start_time', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.start_time
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.end_date}
-                                            onChange={(e) => handleChange('end_date', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.end_date
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.end_time}
-                                            onChange={(e) => handleChange('end_time', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.end_time
-                                    )}
-                                </td>
-                                {/* <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.supervisor}
-                                            onChange={(e) => handleChange('supervisor', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.supervisor
-                                    )}
-                                </td> */}
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.reason}
-                                            onChange={(e) => handleChange('reason', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.reason
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.status}
-                                            onChange={(e) => handleChange('status', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.status
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {/* <button className="btn btn-success" onClick={() => handleApprove(index)}>อนุมัติ</button>
-                                    <button className="btn btn-danger" onClick={() => handleReject(index)}>ปฏิเสธ</button> */}
-                                    {role === 'HR' && (
-                                        <>
-                                            {editIndex === index ? (
-                                                <>
-                                                <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
-                                                <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <button className="btn btn-success" onClick={() => handleApprove(index)}>อนุมัติ</button>
-                                                    <button className="btn btn-danger" onClick={() => handleReject(index)}>ปฏิเสธ</button>
-                                                    <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไขข้อมูล</button>
-                                                </>
-                                            )}
-                                        </>
-                                    )}
-                                    {['Employee', 'Supervisor', 'Admin'].includes(role) && (
-                                        <>
-                                            <button className="btn btn-success" onClick={() => handleApprove(index)}>อนุมัติ</button>
-                                            <button className="btn btn-danger" onClick={() => handleReject(index)}>ปฏิเสธ</button>
-                                        </>
-                                    )}
-                                </td>
-                            </tr>
+                        {leaveData
+                            .filter(el => el.status !== "อนุมัติแล้ว" && el.status !== "ไม่อนุมัติ") // Filter out approved/rejected requests
+                            .map((el, index) => (
+                                <tr key={el.idrequests}>
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.leaveType}
+                                                onChange={(e) => handleChange('leaveType', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.leaveType
+                                        )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.idemployees}
+                                                onChange={(e) => handleChange('idemployees', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.idemployees
+                                        )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.location}
+                                                onChange={(e) => handleChange('location', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.location
+                                        )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.place_name}
+                                                onChange={(e) => handleChange('place_name', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.place_name // ค่าจะเป็น "none"
+                                        )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.start_date}
+                                                onChange={(e) => handleChange('start_date', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.start_date
+                                        )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.start_time}
+                                                onChange={(e) => handleChange('start_time', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.start_time
+                                        )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.end_date}
+                                                onChange={(e) => handleChange('end_date', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.end_date
+                                        )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.end_time}
+                                                onChange={(e) => handleChange('end_time', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.end_time
+                                        )}
+                                    </td>
+                                    {/* <td style={{ padding: "10px" }}>
+                                        {editIndex === index ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.supervisor}
+                                                onChange={(e) => handleChange('supervisor', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.supervisor
+                                        )}
+                                    </td> */}
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.reason}
+                                                onChange={(e) => handleChange('reason', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.reason
+                                        )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            <input
+                                                className="form-control"
+                                                value={editedData.status}
+                                                onChange={(e) => handleChange('status', e.target.value)}
+                                            />
+                                        ) : (
+                                            el.status
+                                        )}
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        {(role === 'Supervisor' || role === 'Admin') && (
+                                            <>
+                                                <button className="btn btn-success" onClick={() => handleApprove(el.idrequests)}>อนุมัติ</button>
+                                                <button className="btn btn-danger" onClick={() => handleReject(el.idrequests)}>ปฏิเสธ</button>
+                                            </>
+                                        )}
+                                        {(role === 'HR' || role === 'Admin') && (
+                                            <>
+                                                {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                    <>
+                                                        <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
+                                                        <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
+                                                    </>
+                                                ) : (
+                                                    <button className="btn btn-primary" onClick={() => handleEdit(el.idrequests)}>แก้ไขข้อมูล</button>
+                                                )}
+                                            </>
+                                        )}
+                                    </td>
+                                </tr>
                         ))}
                     </tbody>
                 </table>

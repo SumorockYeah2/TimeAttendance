@@ -42,6 +42,7 @@ function SearchControl() {
 }
 
 function Assign({ role }) {
+    const API_URL = process.env.REACT_APP_API_URL;
     const navigate = useNavigate();
 
     const [employee, setEmployee] = useState(null);
@@ -52,7 +53,10 @@ function Assign({ role }) {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const [radius, setRadius] = useState("");
-    const [jobLocation, setJobLocation] = useState(null);
+    const [jobLocation] = useState({
+        latitude: 13.76825599595529,
+        longitude: 100.49368727500557
+    })
 
     const [options, setOptions] = useState([]);
     const [filteredOptions, setFilteredOptions] = useState([]);
@@ -64,6 +68,9 @@ function Assign({ role }) {
     const [divisions, setDivisions] = useState([]);
     const [filteredEmployees, setFilteredEmployees] = useState([]);
 
+    const [jobType, setJobType] = useState("เวลาปกติ");
+    const [specialJobs, setSpeicalJobs] = useState([]);
+
     const daysOfWeek = [
         { label: "จันทร์", value: "Monday" },
         { label: "อังคาร", value: "Tuesday" },
@@ -74,11 +81,18 @@ function Assign({ role }) {
         { label: "อาทิตย์", value: "Sunday" }
     ];
 
+    const combinedResults = [
+        ...new Map(
+            [...filteredEmployees, ...filteredOptions.map(opt => ({ idemployees: opt.value, name: opt.label }))]
+            .map(emp => [emp.idemployees, emp])
+        ).values()
+    ];
+
     useEffect(() => {
         // Fetch employee data from the server
         const fetchEmployees = async () => {
             try {
-                const response = await fetch('http://localhost:3001/employee-data');
+                const response = await fetch(`${API_URL}/employee-data`);
                 const data = await response.json();
                 const employeeOptions = data.map(emp => ({ value: emp.idemployees, label: emp.name }));
                 setOptions(employeeOptions);
@@ -90,52 +104,10 @@ function Assign({ role }) {
         fetchEmployees();
     }, []);
 
-    const getUserLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-                    setJobLocation({ latitude, longitude });
-                },
-                (error) => {
-                    console.error('Error getting user location: ', error);
-                }
-            );
-        } else {
-            console.error('Geolocation is not supported by this browser');
-        }
-    }
-
-    useEffect(() => {
-        getUserLocation();
-    }, []);
-
     const handleRadiusChange = (event) => {
         const newValue = event.target.value;
-        if (/^\d*$/.test(newValue)) {
+        if (/^\d*\.?\d*$/.test(newValue)) {
             setRadius(newValue);
-        }
-    };
-
-    const handleMarkerDrag = (event) => {
-        const { lat, lng } = event.target.getLatLng();
-        setJobLocation({ latitude: lat, longitude: lng });
-    };
-
-    const useCurrentLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-                    setJobLocation({ latitude, longitude });
-                },
-                (error) => {
-                    console.error("Error getting user location: ", error);
-                    alert("Unable to fetch location. Please check location permissions.");
-                }
-            );
-        } else {
-            alert("Geolocation is not supported by this browser.");
         }
     };
 
@@ -145,16 +117,7 @@ function Assign({ role }) {
     }
 
     const handleSave = async () => {
-        console.log("Employee:", employee);
-        console.log("Selected Days:", selectedDays);
-        console.log("Start Time:", startTime);
-        console.log("End Time:", endTime);
-        console.log("Job Location:", jobLocation);
-        console.log("Radius:", radius);
-
-        const jobName = "เข้างานออฟฟิศ";
-        const jobDesc = "ลงเวลาเข้างานที่สถาบันอาหาร ในเวลาปกติ";
-        if (!employee || selectedDays.length === 0) {
+        if (!employee || selectedDays.length === 0 || !startTime || !endTime) {
             alert("โปรดกรอกข้อมูลให้ครบทั้งหมดทุกช่องก่อน");
             return;
         }
@@ -172,13 +135,23 @@ function Assign({ role }) {
         };
 
         try {
-            const response = await fetch('http://localhost:3001/jobs-office', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(jobData)
-            });
+            const checkResponse = await fetch(`${API_URL}/get-special-jobs/${employee.value}`);
+            const specialJobs = await checkResponse.json();
+
+            let response;
+            if (specialJobs.length > 0) {
+                response = await fetch(`${API_URL}/update-special-hours`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...jobData, jobID: specialJobs[0].jobID }) // ใช้ jobID ของเวลาพิเศษที่มีอยู่
+                });
+            } else {
+                response = await fetch(`${API_URL}/add-special-hours`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(jobData)
+                });
+            }
 
             if (response.ok) {
                 alert("บันทึกข้อมูลสำเร็จ");
@@ -218,7 +191,7 @@ function Assign({ role }) {
         // Fetch departments and divisions
         const fetchOrgList = async () => {
             try {
-                const response = await fetch('http://localhost:3001/orglist');
+                const response = await fetch(`${API_URL}/orglist`);
             const data = await response.json();
 
             // Extract unique departments and their divisions
@@ -242,7 +215,7 @@ function Assign({ role }) {
             if (selectedDepartment) queryParams.append('department', selectedDepartment);
             if (selectedDivision) queryParams.append('division', selectedDivision);
 
-            const response = await fetch(`http://localhost:3001/employee-search?${queryParams.toString()}`);
+            const response = await fetch(`${API_URL}/employee-search?${queryParams.toString()}`);
             const data = await response.json();
 
             console.log('Selected Department:', selectedDepartment);
@@ -278,7 +251,91 @@ function Assign({ role }) {
         fetchFilteredEmployees();
     }, [selectedDepartment, selectedDivision]);
 
-    if (role !== 'Supervisor' && role !== 'Admin' && role !== 'HR') {
+    const fetchEmployeeJobData = async () => {
+        if (employee) {
+            try {
+                const response = await fetch(`${API_URL}/get-office-job/${employee.value}`);
+                const data = await response.json();
+
+                if (data) {
+                    setStartTime(data.start_time || '');
+                    setEndTime(data.end_time || '');
+                    setSelectedDays(data.weekdays ? data.weekdays.split(',') : []);
+                    setRadius(data.gps_radius || '');
+                } else {
+                    setStartTime('');
+                    setEndTime('');
+                    setSelectedDays([]);
+                    setRadius('');
+                }
+            } catch (error) {
+                console.error('Error fetching employee job data:', error);
+            }
+        }
+    };
+
+    useEffect(() => {
+        fetchSpecialJobData();
+    }, [employee]);
+
+    const fetchSpecialJobData = async () => {
+        if (employee) {
+            try {
+                const response = await fetch(`${API_URL}/get-special-jobs/${employee.value}`);
+                const data = await response.json();
+    
+                if (data.length > 0) {
+                    const specialJob = data.find(job => job.jobID === 'OF02');
+                    if (specialJob) {
+                        setStartTime(specialJob.start_time || '');
+                        setEndTime(specialJob.end_time || '');
+                        setSelectedDays(specialJob.weekdays ? specialJob.weekdays.split(',') : []);
+                        setRadius(specialJob.gps_radius || '');
+                    } else {
+                        clearForm();
+                    }
+                } else {
+                    clearForm();
+                }
+            } catch (error) {
+                console.error('Error fetching special job data:', error);
+            }
+        }
+    };
+
+    const clearForm = () => {
+        setStartTime('');
+        setEndTime('');
+        setSelectedDays([]);
+        setRadius('');
+    };
+
+    const handleDeleteSpecialJob = async () => {
+        if (!employee) {
+            alert("กรุณาเลือกพนักงานก่อนลบเวลาพิเศษ");
+            return;
+        }
+    
+        try {
+            const response = await fetch(`${API_URL}/delete-special-job/${employee.value}`, {
+                method: 'DELETE'
+            });
+    
+            if (response.ok) {
+                alert("ลบเวลาพิเศษสำเร็จ");
+                clearForm(); // เคลียร์ค่าฟอร์มหลังจากลบสำเร็จ
+            } else if (response.status === 404) {
+                alert("ไม่พบเวลาพิเศษสำหรับพนักงานคนนี้");
+            } else {
+                alert("เกิดข้อผิดพลาดในการลบเวลาพิเศษ");
+            }
+        } catch (error) {
+            console.error('Error deleting special job:', error);
+            alert("เกิดข้อผิดพลาดในการลบเวลาพิเศษ");
+        }
+    };
+
+    if (role !== 'Admin' && role !== 'HR') {
         return (
             <div>
                 <p>ท่านไม่มีสิทธิ์เข้าถึงหน้านี้</p>
@@ -289,17 +346,34 @@ function Assign({ role }) {
 
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
-            <h5>จัดการเวลาทำงาน</h5>
+            <h5>จัดการเวลาพิเศษ</h5>
 
             <div>
                 <p>พนักงาน</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="flex-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <div>
                         <p>ฝ่าย</p>
                         <select
                             className="form-control"
                             value={selectedDepartment}
                             onChange={handleDepartmentChange}
+                            style={{
+                                position: 'relative',
+                                display: 'inline-block',
+                                width: '330px',
+                                height: '40px',
+                                fontSize: '16px',
+                                padding: '5px 10px',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                backgroundColor: '#fff',
+                                appearance: 'none', // ซ่อนลูกศรเริ่มต้นของเบราว์เซอร์
+                                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")",
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 10px center',
+                                backgroundSize: '16px',
+                                cursor: 'pointer',
+                            }}
                         >
                             <option value="">เลือกฝ่าย</option>
                             {departments.map(dep => (
@@ -315,6 +389,23 @@ function Assign({ role }) {
                             value={selectedDivision}
                             onChange={handleDivisionChange}
                             disabled={!selectedDepartment}
+                            style={{
+                                position: 'relative',
+                                display: 'inline-block',
+                                width: '330px',
+                                height: '40px',
+                                fontSize: '16px',
+                                padding: '5px 10px',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                backgroundColor: '#fff',
+                                appearance: 'none', // ซ่อนลูกศรเริ่มต้นของเบราว์เซอร์
+                                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")",
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 10px center',
+                                backgroundSize: '16px',
+                                cursor: 'pointer',
+                            }}
                         >
                             <option value="">เลือกแผนก</option>
                             {divisions.map(div => (
@@ -332,43 +423,46 @@ function Assign({ role }) {
                             placeholder="ค้นหาด้วยชื่อ"
                             style={{ width: '330px' }}
                         />
-                        {searchQuery && filteredOptions.length > 0 && (
-                            <div style={{ position: 'absolute', width: '330px', border: '1px solid #ccc', maxHeight: '150px', overflowY: 'auto', zIndex: 1000 }}>
-                                {filteredOptions.map(option => (
-                                    <div
-                                        key={option.value}
-                                        onClick={() => {
-                                            setEmployee(option);
-                                            setSearchQuery("");
-                                            setFilteredOptions(options);
-                                        }}
-                                        style={{ padding: '10px', cursor: 'pointer' }}
-                                    >
-                                        {option.label}
-                                    </div>
-                                ))}
+                        {/* {searchQuery && (
+                            <div style={{ marginTop: '20px' }}>
+                                <h6>ผลการค้นหา</h6>
+                                {filteredOptions.length > 0 ? (
+                                    <ul style={{ listStyleType: 'none', padding: 0 }}>
+                                        {filteredOptions.map(option => (
+                                            <li
+                                                key={option.value}
+                                                style={{ padding: '10px', borderBottom: '1px solid #ccc', cursor: 'pointer' }}
+                                                onClick={() => {
+                                                    setEmployee(option);
+                                                    setSearchQuery(""); // Clear the search query after selection
+                                                }}
+                                            >
+                                                <strong>{option.label}</strong>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p>ไม่พบผลการค้นหา</p>
+                                )}
                             </div>
-                        )}
+                        )} */}
                     </div>
                 </div>
-
                 <div style={{ marginTop: '20px' }}>
                     <h6>ผลการค้นหา</h6>
-                    {/* เงื่อนไข: แสดงผลเฉพาะเมื่อเลือกฝ่ายหรือแผนกแล้ว */}
-                    {selectedDepartment && selectedDivision ? (
-                        filteredEmployees.length > 0 ? (
+                    {selectedDepartment || searchQuery ? (
+                        combinedResults.length > 0 ? (
                             <ul style={{ listStyleType: 'none', padding: 0 }}>
-                                {/* กรองข้อมูลซ้ำก่อนแสดงผล */}
-                                {[...new Map(filteredEmployees.map(emp => [emp.idemployees, emp])).values()].map(emp => (
+                                {combinedResults.map(emp => (
                                     <li
                                         key={emp.idemployees}
                                         style={{ padding: '10px', borderBottom: '1px solid #ccc', cursor: 'pointer' }}
                                         onClick={() => {
-                                            setEmployee({ value: emp.idemployees, label: emp.name }); // อัปเดตสถานะ employee
-                                            console.log('Selected Employee:', emp); // Debugging log
+                                            setEmployee({ value: emp.idemployees, label: emp.name });
+                                            console.log('Selected Employee:', emp);
                                         }}
                                     >
-                                        <strong>{emp.name}</strong> ({emp.department_name} - {emp.division_name})
+                                        <strong>{emp.name}</strong>
                                     </li>
                                 ))}
                             </ul>
@@ -376,105 +470,119 @@ function Assign({ role }) {
                             <p>ไม่พบพนักงาน</p>
                         )
                     ) : (
-                        <p>โปรดเลือกฝ่ายและแผนกก่อน</p>
+                        <p>กรุณาเลือกฝ่าย/แผนก หรือค้นหาด้วยชื่อ</p>
                     )}
                 </div>
 
+                {!employee && (
+                    <div style={{ marginTop: '20px' }}>
+                        <p>กรุณาเลือกพนักงานก่อน</p>
+                    </div>
+                )}
                 {employee && (
                     <div style={{ marginTop: '10px' }}>
                         <p>พนักงานที่เลือก: {employee.label}</p>
                     </div>
                 )}
             </div>
-            <div>
-                <p>เลือกวันทำงาน</p>
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                    {daysOfWeek.map((day) => (
-                        <label key={day.value} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                            <input
-                                type="checkbox"
-                                checked={selectedDays.includes(day.value)}
-                                onChange={() => handleDayChange(day.value)}
-                            />
-                            {day.label}
-                        </label>
-                    ))}
-                </div>
-            </div>
-            <div>
-                <p>เวลาเริ่มต้น</p>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <input
-                        type="time"
-                        className="form-control"
-                        placeholder="Start time"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        style={{ width: '120px' }}
-                    />
-                </div>
-            </div>
-            <div>
-                <p>เวลาสิ้นสุด</p>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <input
-                        type="time"
-                        className="form-control"
-                        placeholder="End time"
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
-                        style={{ width: '120px' }}
-                    />
-                </div>
-            </div>
-            <div>
-                <p>กำหนดพิกัดสำหรับลงเวลาเข้างาน (ลากหมุดบนแผนที่เพื่อเลือกพิกัดที่ต้องการ)</p>
-                {jobLocation && (
+            {employee && (
+                <>
                     <div>
-                        <MapContainer
-                            center={[jobLocation.latitude, jobLocation.longitude]}
-                            zoom={13}
-                            style={{ height: '400px', width: '75vw' }}
-                            key={jobLocation.latitude + jobLocation.longitude}
-                        >
-                            <TileLayer
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                            />
-                            <Marker
-                                position={[jobLocation.latitude, jobLocation.longitude]}
-                                draggable={true}
-                                eventHandlers={{ dragend: handleMarkerDrag }}
-                            >
-                                <Popup>
-                                    คลิกลากหมุดนี้ เพื่อเลือกพิกัดที่ต้องการ <br />
-                                    ละติจูด: {jobLocation.latitude}, ลองจิจูด: {jobLocation.longitude}
-                                </Popup>
-                            </Marker>
-                            <Circle
-                                center={[jobLocation.latitude, jobLocation.longitude]}
-                                radius={radius * 1000} // Convert km to meters
-                                color="blue"
-                            />
-                            <SearchControl />
-                        </MapContainer>
+                        <p>เลือกวันทำงาน</p>
+                        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                            {daysOfWeek.map((day) => (
+                                <label key={day.value} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedDays.includes(day.value)}
+                                        onChange={() => handleDayChange(day.value)}
+                                        disabled={jobName === 'เข้างานออฟฟิศ'}
+                                    />
+                                    {day.label}
+                                </label>
+                            ))}
+                        </div>
                     </div>
-                )}
-            </div>
-            <div>
-                <p>รัศมีสำหรับระบบ GPS (หน่วย กม.)</p>
-                <input
-                    className="form-control"
-                    type="text"
-                    value={radius}
-                    onChange={handleRadiusChange}
-                    style={{ width: '330px' }}
-                />
-            </div>
-            <div style={{ paddingTop: '10px' }}>
-                <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
-                <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
-            </div>
+                    <div>
+                        <p>เวลาเริ่มต้น</p>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <input
+                                type="time"
+                                className="form-control"
+                                placeholder="Start time"
+                                value={startTime}
+                                onChange={(e) => setStartTime(e.target.value)}
+                                style={{ width: '120px' }}
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <p>เวลาสิ้นสุด</p>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <input
+                                type="time"
+                                className="form-control"
+                                placeholder="End time"
+                                value={endTime}
+                                onChange={(e) => setEndTime(e.target.value)}
+                                style={{ width: '120px' }}
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        {jobLocation && (
+                            <div>
+                                <MapContainer
+                                    center={[jobLocation.latitude, jobLocation.longitude]}
+                                    zoom={13}
+                                    style={{ height: '400px', width: '75vw' }}
+                                    key={jobLocation.latitude + jobLocation.longitude}
+                                >
+                                    <TileLayer
+                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    />
+                                    <Marker
+                                        position={[jobLocation.latitude, jobLocation.longitude]}
+                                        draggable={false}
+                                    >
+                                    </Marker>
+                                    <Circle
+                                        center={[jobLocation.latitude, jobLocation.longitude]}
+                                        radius={radius * 1000} // Convert km to meters
+                                        color="blue"
+                                    />
+                                </MapContainer>
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <p>รัศมีสำหรับระบบ GPS (หน่วย กม.)</p>
+                        <input
+                            className="form-control"
+                            type="text"
+                            value={radius}
+                            onChange={handleRadiusChange}
+                            style={{ width: '330px' }}
+                        />
+                    </div>
+                    <div style={{ paddingTop: '10px' }}>
+                        <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
+                        <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
+                    </div>
+                    <div>
+                    
+                    {(startTime || endTime || selectedDays.length > 0 || radius) && (
+                        <div style={{ paddingTop: '10px' }}>
+                            <button className="btn btn-danger" onClick={handleDeleteSpecialJob}>
+                                ลบเวลาพิเศษ
+                            </button>
+                        </div>
+                    )}
+
+                    </div>
+                </>
+            )}
         </div>
     )
 }

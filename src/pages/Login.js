@@ -2,24 +2,25 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const API_URL = process.env.REACT_APP_API_URL;
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async () => {
-    if (!username || !password) {
+    if (!email || !password) {
       alert('โปรดกรอกชื่อผู้ใช้และรหัสผ่านให้ครบทั้งสองช่อง');
       return;
     }
 
     try {
-      console.log('Sending login request with:', { username, password });
-      const response = await fetch('http://localhost:3001/login', {
+      console.log('Sending login request with:', { email, password });
+      const response = await fetch(`${API_URL}/login`, {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ email, password })
       });
 
       console.log('Response status:', response.status);
@@ -65,9 +66,9 @@ const Login = () => {
         <input
           type="text"
           className="form-control"
-          placeholder="ชื่อผู้ใช้"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          placeholder="อีเมล"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           onKeyDown={handleKeyDown}
         />
         <input

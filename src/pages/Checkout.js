@@ -5,6 +5,7 @@ import 'react-dropdown/style.css';
 import moment from 'moment-timezone';
 
 function Checkout() {
+    const API_URL = process.env.REACT_APP_API_URL;
     const [selectedFile, setSelectedFile] = useState(null);
     const [isFormCompleted, setIsFormCompleted] = useState(false);
     const [selectedOption, setSelectedOption] = useState(null);
@@ -17,8 +18,7 @@ function Checkout() {
     const idemployees = localStorage.getItem('idemployees');
 
     useEffect(() => {
-        fetch(`http://localhost:3001/get-checked-in-jobs/${idemployees}`)
-        //   .then(response => response.json())
+        fetch(`${API_URL}/get-checked-in-jobs/${idemployees}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -26,19 +26,29 @@ function Checkout() {
                 return response.json();
             })
             .then(data => {
-            console.log('Fetched checked-in jobs:', data);
-            const formattedOptions = data.map(job => ({
-                value: job.jobname,
-                label: job.jobname,
-                jobID: job.jobID,
-                latitude: job.latitude,
-                longitude: job.longitude,
-                radius: job.gps_radius
-            }));
-            setJobOptions(formattedOptions);
-            console.log(formattedOptions);
-        })
-        .catch(error => console.error('Error fetching checked-in jobs:', error));
+                console.log('Fetched checked-in jobs:', data);
+
+                const uniqueJobs = data.reduce((acc, job) => {
+                    if (!acc.some(existingJob => existingJob.jobID === job.jobID)) {
+                        acc.push(job);
+                    }
+                    return acc;
+                }, []);
+
+                const formattedOptions = uniqueJobs.map(job => ({
+                    value: job.jobname,
+                    label: job.jobname,
+                    jobID: job.jobID,
+                    latitude: job.latitude,
+                    longitude: job.longitude,
+                    radius: job.gps_radius,
+                    in_time: job.in_time,
+                    out_time: job.out_time
+                }));
+                setJobOptions(formattedOptions);
+                console.log('Formatted options:', formattedOptions);
+            })
+            .catch(error => console.error('Error fetching checked-in jobs:', error));
     }, [idemployees]);
 
     // const options = [
@@ -50,6 +60,7 @@ function Checkout() {
     const _onSelect = (selectedOption) => {
         console.log(selectedOption);
         setSelectedOption(selectedOption.value);
+
         const selectedJob = jobOptions.find(job => job.value === selectedOption.value);
         console.log("selectedJob:", selectedJob);
         setJobDetails({
@@ -65,19 +76,18 @@ function Checkout() {
         localStorage.setItem('isCheckedIn', 'false');
         localStorage.removeItem('isCheckedIn');
 
-        // const checkOutDateTime = new Date().toISOString();
         const checkOutDateTime = moment().tz('Asia/Bangkok').format();
         console.log(checkOutDateTime);
 
         localStorage.setItem('checkOutDateTime', checkOutDateTime);
 
         const checkOutData = {
-            selectedOption,
+            jobID: jobDetails.jobID,
             checkOutDateTime
         };
 
         try {
-            const response = await fetch('http://localhost:3001/checkout', {
+            const response = await fetch(`${API_URL}/checkout`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -85,7 +95,7 @@ function Checkout() {
                 body: JSON.stringify(checkOutData)
             });
 
-            console.log(response);
+            console.log("Response:", response);
 
             if (response.ok) {
                 const event = new Event('checkInStatusChanged');
@@ -100,11 +110,6 @@ function Checkout() {
             console.error('Error saving check-out data:', error);
             alert("Failed to save check-out data. Please try again.");
         }
-        // const event = new Event('checkInStatusChanged');
-        // window.dispatchEvent(event);
-
-        // alert("Check-out complete!");
-        // navigate('/home2');
     };
 
     const handleCancel = () => {
@@ -134,6 +139,7 @@ function Checkout() {
                         onChange={_onSelect}
                         value={selectedOption || ""}
                         placeholder="โปรดระบุ"
+                        getOptionLabel={(option) => `${option.label} (${option.in_time || 'N/A'})`}
                     />
                     <div>
                         <button className="btn btn-success" onClick={handleCheckout}>ลงเวลาออก</button>

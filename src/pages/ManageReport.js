@@ -2,10 +2,11 @@ import React, {useState, useEffect} from 'react';
 import * as XLSX from 'xlsx';
 
 function ManageReport() {
+    const API_URL = process.env.REACT_APP_API_URL;
     const [workData, setWorkData] = useState([]);
 
     const fetchAttendanceData = () => {
-        fetch('http://localhost:3001/attendance')
+        fetch(`${API_URL}/attendance`)
             .then(response => response.json())
             .then(data => {
                 console.log('attendance data from database:', data);
@@ -32,7 +33,7 @@ function ManageReport() {
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
             const expectedHeaders = [
-                'idattendance', 'jobID', 'jobType', 'description', 'in_time', 'out_time', 'location', 'image_url'
+                'idattendance', 'jobID', 'jobType', 'description', 'idemployees', 'in_time', 'out_time', 'location', 'image_url'
             ];
 
             const fileHeaders = jsonData[0];
@@ -53,7 +54,7 @@ function ManageReport() {
             });
     
             for (const attendance of dataToImport) {
-                const response = await fetch('http://localhost:3001/attendance-check', {
+                const response = await fetch(`${API_URL}/attendance-check`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -64,7 +65,7 @@ function ManageReport() {
                 const result = await response.json();
     
                 if (!result.exists) {
-                    await fetch('http://localhost:3001/attendance-add', {
+                    await fetch(`${API_URL}/attendance-add`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -116,7 +117,7 @@ function ManageReport() {
         // setEditIndex(null);
         // setEditedData({});
         try {
-            const response = await fetch('http://localhost:3001/attendance-update', {
+            const response = await fetch(`${API_URL}/attendance-update`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -157,7 +158,7 @@ function ManageReport() {
     const handleAddEntry = async () => {
         if (newEntry.idattendance) {
             try {
-                const response = await fetch('http://localhost:3001/attendance-add', {
+                const response = await fetch(`${API_URL}/attendance-add`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -187,7 +188,7 @@ function ManageReport() {
         if (confirmed) {
             const idattendance = workData[index].idattendance;
             try {
-                const response = await fetch(`http://localhost:3001/attendance-remove/${idattendance}`, {
+                const response = await fetch(`${API_URL}/attendance-remove/${idattendance}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
@@ -229,10 +230,10 @@ function ManageReport() {
                             <th style={{ padding: "10px" }}>รหัสงาน</th>
                             <th style={{ padding: "10px" }}>ประเภทงาน</th>
                             <th style={{ padding: "10px" }}>รายละเอียดงาน</th>
+                            <th style={{ padding: "10px" }}>รหัสพนักงาน</th>
                             <th style={{ padding: "10px" }}>เวลาเข้า</th>
                             <th style={{ padding: "10px" }}>เวลาออก</th>
-                            <th style={{ padding: "10px" }}>พิกัดสถานที่</th>
-                            <th style={{ padding: "10px" }}>ไฟล์รูปภาพ</th>
+                            <th style={{ padding: "10px" }}>ชื่อสถานที่</th>
                             <th style={{ padding: "10px" }}>การทำงาน</th>
                         </tr>
                     </thead>
@@ -287,6 +288,17 @@ function ManageReport() {
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
+                                            value={editedData.idemployees}
+                                            onChange={(e) => handleChange('idemployees', e.target.value)}
+                                        />
+                                    ) : (
+                                        el.idemployees
+                                    )}
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    {editIndex === index ? (
+                                        <input
+                                            className="form-control"
                                             value={editedData.in_time}
                                             onChange={(e) => handleChange('in_time', e.target.value)}
                                         />
@@ -309,22 +321,11 @@ function ManageReport() {
                                     {editIndex === index ? (
                                         <input
                                             className="form-control"
-                                            value={editedData.location}
-                                            onChange={(e) => handleChange('location', e.target.value)}
+                                            value={editedData.place_name}
+                                            onChange={(e) => handleChange('place_name', e.target.value)}
                                         />
                                     ) : (
-                                        el.location
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.image_url}
-                                            onChange={(e) => handleChange('image_url', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.image_url
+                                        el.place_name
                                     )}
                                 </td>
                                 <td style={{ padding: "10px" }}>
@@ -385,6 +386,15 @@ function ManageReport() {
                                 <td>
                                     <input
                                         className="form-control"
+                                        value={newEntry.idemployees || ''}
+                                        onChange={(e) =>
+                                            setNewEntry({ ...newEntry, idemployees: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
                                         value={newEntry.in_time || ''}
                                         onChange={(e) =>
                                             setNewEntry({ ...newEntry, in_time: e.target.value })
@@ -403,18 +413,9 @@ function ManageReport() {
                                 <td>
                                     <input
                                         className="form-control"
-                                        value={newEntry.location || ''}
+                                        value={newEntry.place_name || ''}
                                         onChange={(e) =>
-                                            setNewEntry({ ...newEntry, location: e.target.value })
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        className="form-control"
-                                        value={newEntry.image_url || ''}
-                                        onChange={(e) =>
-                                            setNewEntry({ ...newEntry, image_url: e.target.value })
+                                            setNewEntry({ ...newEntry, place_name: e.target.value })
                                         }
                                     />
                                 </td>

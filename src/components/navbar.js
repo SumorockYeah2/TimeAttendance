@@ -76,11 +76,12 @@ function Navbar({ username, toggleSidebar, isLoggedIn, role }) {
           <div className="d-flex align-items-center">
             {isSidebarVisible && (
               <>
-                <div className="bell" onClick={toggleNotifications} style={{ cursor: "pointer", marginRight: "15px" }}>
-                  <BsBellFill />
-                </div>
                 <div className="navbar-text d-none d-sm-block" style={{ marginRight: "15px" }}>
-                    {username}<br/>{role}
+                  {username}<br/>
+                  {role === "HR" && "แผนกบุคคล"}
+                  {role === "Admin" && "ผู้ดูแลระบบ"}
+                  {role === "Supervisor" && "หัวหน้า"}
+                  {role === "Employee" && "พนักงาน"}
                 </div>
               </>
             )}

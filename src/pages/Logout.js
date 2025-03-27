@@ -10,7 +10,7 @@ function Logout() {
         console.log(isLoggedIn);
         window.dispatchEvent(new Event('storage'));
         alert("ออกจากระบบเรียบร้อยแล้ว");
-        navigate('/login');
+        navigate('/login2');
     }
 
     return (

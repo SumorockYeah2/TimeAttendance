@@ -17,6 +17,7 @@ L.Icon.Default.mergeOptions({
 });
 
 function Checkin() {
+    const API_URL = process.env.REACT_APP_API_URL;
     const [userLocation, setUserLocation] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [fileName, setFileName] = useState("");
@@ -40,29 +41,80 @@ function Checkin() {
         }
     }, []);
 
+    const checkLeaveOverlap = async () => {
+        try {
+            const response = await fetch(`${API_URL}/request-get`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+    
+            if (!response.ok) {
+                console.error('Error fetching leave requests:', response.statusText);
+                return false;
+            }
+        } catch (error) {
+            console.error('Error checking leave overlap:', error);
+            return false;
+        }
+    };
+
+    const fetchGpsRadius = async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/settings-fetch?jobID=OF01`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            return data.gps_radius; // Return the GPS radius
+        } catch (error) {
+            console.error('Error fetching GPS radius:', error);
+            return 0.3; // Default value in case of error
+        }
+    };
+    
     useEffect(() => {
-        fetch(`http://localhost:3001/get-assigned-jobs/${idemployees}`)
-        //   .then(response => response.json())
-            .then(response => {
+        const fetchJobs = async () => {
+            try {
+                const gpsRadius = await fetchGpsRadius(); // ดึงค่ารัศมี GPS จาก settings
+    
+                const response = await fetch(`${API_URL}/get-assigned-jobs/${idemployees}`);
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                return response.json();
-            })
-            .then(data => {
+                const data = await response.json();
                 console.log('Filtered jobs from backend:', data);
     
-                const formattedOptions = data.map(job => ({
+                const filteredJobs = data.filter(job => job.isCheckedOut !== 1);
+    
+                const formattedOptions = filteredJobs.map(job => ({
                     value: job.jobname,
                     label: job.jobname,
                     latitude: job.latitude,
                     longitude: job.longitude,
-                    radius: job.gps_radius
+                    radius: job.gps_radius,
+                    place_name: job.place_name
                 }));
     
-                setJobOptions(formattedOptions);
-            })
-        .catch(error => console.error('Error fetching jobs:', error));
+                const officeOption = {
+                    value: "เข้างานออฟฟิศ",
+                    label: "เข้างานออฟฟิศ",
+                    latitude: 13.76825599595529,
+                    longitude: 100.49368727500557,
+                    radius: gpsRadius, // ใช้ค่าที่ดึงมาจาก settings
+                    place_name: "สถาบันอาหาร",
+                    start_time: "08:30",
+                    end_time: "17:30"
+                };
+    
+                setJobOptions([officeOption, ...formattedOptions]);
+            } catch (error) {
+                console.error('Error fetching jobs:', error);
+            }
+        };
+    
+        fetchJobs();
     }, [idemployees]);
 
     const getUserLocation = () => {
@@ -72,24 +124,18 @@ function Checkin() {
                 (position) => {
                     const { latitude, longitude } = position.coords;
                     setUserLocation({ latitude, longitude });
+                    const distance = calculateDistance(latitude, longitude, jobDetails.latitude, jobDetails.longitude);
+                    console.log("latitude: ", latitude);
+                    console.log("longitude: ", longitude);
+                    console.log("jobDetails.latitude: ", jobDetails.latitude);
+                    console.log("jobDetails.longitude: ", jobDetails.longitude);
+                    console.log(`User is ${distance.toFixed(2)} km away from the check-in location.`);
 
-                    // const storedLocation = JSON.parse(localStorage.getItem('requiredLocation'));
-                    // const storedRadius = parseFloat(localStorage.getItem('gpsRadius')) || 0;
-
-                    // if (jobDetails.latitude && jobDetails.longitude && jobDetails.radius) {
-                        const distance = calculateDistance(latitude, longitude, jobDetails.latitude, jobDetails.longitude);
-                        console.log("latitude: ", latitude);
-                        console.log("longitude: ", longitude);
-                        console.log("jobDetails.latitude: ", jobDetails.latitude);
-                        console.log("jobDetails.longitude: ", jobDetails.longitude);
-                        console.log(`User is ${distance.toFixed(2)} km away from the check-in location.`);
-
-                        if (distance <= jobDetails.radius) {
-                            setIsWithinRadius(true);
-                        } else {
-                            setIsWithinRadius(false);
-                        }
-                    // }
+                    if (distance <= jobDetails.radius) {
+                        setIsWithinRadius(true);
+                    } else {
+                        setIsWithinRadius(false);
+                    }
                 },
                 (error) => {
                     console.error('Error getting user location: ', error);
@@ -125,8 +171,10 @@ function Checkin() {
         setJobDetails({
             latitude: selectedJob.latitude,
             longitude: selectedJob.longitude,
-            radius: selectedJob.radius
+            radius: selectedJob.radius,
+            place_name: selectedJob.place_name
         });
+        setPlaceName(selectedJob.place_name);
         console.log(jobDetails);
     };
 
@@ -167,11 +215,23 @@ function Checkin() {
 
     const handleSave = async () => {
         console.log(selectedOption, textInput, userLocation);
-        if (selectedOption && textInput.trim() !== "") {
+        const hasLeaveOverlap = await checkLeaveOverlap();
+        if (hasLeaveOverlap) {
+            alert("ไม่สามารถลงเวลาเข้างานได้ เนื่องจากเวลาชนกับช่วงเวลาที่ลางาน");
+            return;
+        }
+    
+        if (selectedOption) {
+            const skipRadiusCheck = selectedOption.startsWith("งานนอกสถานที่");
+
+            if (!skipRadiusCheck && !isWithinRadius) {
+                alert("ท่านไม่สามารถลงเวลาเข้างานได้ เนื่องจากไม่ได้อยู่ภายในรัศมีที่กำหนดไว้ในระบบ");
+                return;
+            }
+
             setIsFormCompleted(true);
             localStorage.setItem('isCheckedIn', 'true');
 
-            // const currentDateTime = new Date().toISOString();
             const currentDateTime = moment().tz('Asia/Bangkok').format();
             console.log(currentDateTime)
 
@@ -179,21 +239,54 @@ function Checkin() {
             localStorage.setItem('selectedOption', selectedOption);
             localStorage.setItem('textInput', textInput);
             localStorage.setItem('checkInDateTime', currentDateTime);
-            console.log(localStorage.getItem('userLocation'));
-            console.log(localStorage.getItem('selectedOption'));
-            console.log(localStorage.getItem('textInput'));
-            console.log(localStorage.getItem('checkInDateTime'));
 
             const checkOutDateTime = "Pending";
-            console.log(checkOutDateTime);
-
             localStorage.setItem('checkOutDateTime', checkOutDateTime);
 
-            const uploadedFilePath = selectedFile ? URL.createObjectURL(selectedFile) : null; // Use state value
-            localStorage.setItem('uploadedFilePath', uploadedFilePath); // Update localStorage here
-            console.log(localStorage.getItem('uploadedFilePath'));
+            let uploadedFilePath = null;
 
-            const place_name = selectedOption === "เข้าออฟฟิศ" ? "สถาบันอาหาร" : "";
+            // อัปโหลดไฟล์ภาพ
+            if (selectedFile) {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                try {
+                    const uploadResponse = await fetch(`${API_URL}/upload`, {
+                        method: 'POST',
+                        body: formData,
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (uploadResponse.ok) {
+                        const uploadData = await uploadResponse.json();
+                        uploadedFilePath = uploadData.filePath; // Path ของไฟล์ที่อัปโหลด
+                    } else {
+                        alert("ไม่สามารถอัปโหลดไฟล์ได้ กรุณาลองอีกครั้ง");
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error uploading file:', error);
+                    alert("ไม่สามารถอัปโหลดไฟล์ได้ กรุณาลองอีกครั้ง");
+                    return;
+                }
+            }
+
+            let place_name = "";
+            if (selectedOption === "เข้างานออฟฟิศ") {
+                place_name = "สถาบันอาหาร";
+            } else if (selectedOption === "เวลาพิเศษ") {
+                place_name = jobDetails.place_name || "สถาบันอาหาร"; // ใช้ค่า place_name จาก jobDetails หรือกำหนดค่าเริ่มต้น
+            } else if (selectedOption.startsWith("งานนอกสถานที่")) {
+                place_name = jobDetails.place_name || "";
+            }
+
+            if (!place_name) {
+                alert("ไม่สามารถระบุสถานที่ได้ กรุณาลองใหม่อีกครั้ง");
+                return;
+            }
 
             const checkInData = {
                 idemployees,
@@ -208,7 +301,7 @@ function Checkin() {
             console.log(checkInData);
 
             try {
-                const response = await fetch('http://localhost:3001/checkin', {
+                const response = await fetch(`${API_URL}/checkin`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -224,37 +317,21 @@ function Checkin() {
 
                     alert("ลงเวลาเข้างานเรียบร้อย");
                 } else {
-                    alert("Failed to save check-in data. Please try again.");
+                    alert("ไม่สามารถบันทึกเวลาเข้างานได้ กรุณาลองอีกครั้ง");
                 }
             }
             catch (error) {
                 console.error('Error saving check-in data:', error);
-                alert("Failed to save check-in data. Please try again.");
+                alert("ไม่สามารถบันทึกเวลาเข้างานได้ กรุณาลองอีกครั้ง");
             }
         } else {
-            alert("โปรดระบุงานและรายละเอียดการปฏิบัติงาน");
+            alert("โปรดระบุงานก่อน");
         }
     };
-
-    // const handleCancel = () => {
-    //     navigate('/home2');
-    // };
-
-    // const handleCheckOut = () => {
-    //     navigate('/checkout');
-    // };
 
     return (
         <div style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>ลงเวลาเข้างาน</h5>
-
-            {/* {isCheckedIn ? (
-                <div>
-                    <p>ท่านได้ทำการลงเวลาเข้างานไปแล้ว กรุณาลงเวลาออกก่อนหากต้องการลงเวลาเข้างานใหม่อีกครั้ง.</p>
-                    <button className="btn btn-success" onClick={handleCheckOut}>ลงเวลาออก</button>
-                    <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
-                </div>
-            ) : ( */}
                 <div>
                     <Dropdown
                         className="dropdown"
@@ -308,11 +385,10 @@ function Checkin() {
                         />
                     </div>
                     <div>
-                        <button className="btn btn-success" onClick={handleSave} disabled={!isWithinRadius}>ลงเวลาเข้า</button>
-                        {/* <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button> */}
-                        {!isWithinRadius && <p style={{ color: 'red' }}>
-                        ท่านไม่สามารถลงเวลาเข้างานได้ เนื่องจากไม่ได้อยู่ภายในรัศมีที่กำหนดไว้ในระบบ<br />กรุณาเดินทางเข้าใกล้สถานที่ตามพิกัดที่ได้รับมอบหมายแล้วลองอีกครั้ง
-                        </p>}
+                        <button className="btn btn-success" onClick={handleSave} disabled={!selectedOption || (!selectedOption.startsWith("งานนอกสถานที่") && !isWithinRadius)}>ลงเวลาเข้า</button>
+                        {!isWithinRadius && selectedOption && !selectedOption.startsWith("งานนอกสถานที่") && (<p style={{ color: 'red' }}>
+                            ท่านไม่สามารถลงเวลาเข้างานได้ เนื่องจากไม่ได้อยู่ภายในรัศมีที่กำหนดไว้ในระบบ<br />กรุณาเดินทางเข้าใกล้สถานที่ตามพิกัดที่ได้รับมอบหมายแล้วลองอีกครั้ง
+                        </p>)}
                     </div>
                 </div>
              {/* )} */}
