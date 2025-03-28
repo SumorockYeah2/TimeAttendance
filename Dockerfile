@@ -2,7 +2,7 @@
 FROM node:lts-alpine AS build
 
 # Set working directory
-WORKDIR /usr/src/app
+WORKDIR ./app
 
 # Copy package.json and package-lock.json
 COPY package.json package-lock.json ./
@@ -23,7 +23,7 @@ FROM nginx:alpine
 COPY --from=build /usr/src/app/build /usr/share/nginx/html
 
 # Expose port 80
-EXPOSE 80
+EXPOSE 3000
 
 # Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
