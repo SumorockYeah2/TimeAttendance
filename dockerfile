@@ -39,7 +39,50 @@ COPY package*.json ./
 
 # ติดตั้ง dependencies
 RUN npm install
+# Step 1: Build Frontend
+FROM node:18 AS frontend-build
 
+# Set working directory
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install --legacy-peer-deps
+
+# Copy all files and build the React app
+COPY . .
+RUN npm run build
+
+# Step 2: Build Backend
+FROM node:18 AS backend-build
+
+# Set working directory
+WORKDIR /usr/src/backend
+
+# Copy backend files
+COPY backend/package*.json ./
+RUN npm install --legacy-peer-deps
+
+# Copy the rest of the backend files
+COPY backend .
+
+# Step 3: Serve Frontend with Nginx
+FROM nginx:alpine AS production
+
+# Copy frontend build files to Nginx
+COPY --from=frontend-build /usr/src/app/build /usr/share/nginx/html
+
+# Copy backend files to the final image
+COPY --from=backend-build /usr/src/backend /usr/src/backend
+
+# Expose ports
+EXPOSE 3000
+EXPOSE 3001
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
 # คัดลอกไฟล์ทั้งหมดใน frontend
 COPY . .
 
