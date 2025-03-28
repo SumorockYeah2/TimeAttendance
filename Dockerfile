@@ -5,7 +5,7 @@ FROM node:lts-alpine AS build
 WORKDIR ./app
 
 # Copy package.json and package-lock.json
-COPY package.json package-lock.json ./
+COPY package.json
 
 # Install dependencies
 RUN npm install 
