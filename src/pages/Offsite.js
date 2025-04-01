@@ -12,7 +12,7 @@ import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
 import { useMap } from 'react-leaflet/hooks';
 import 'leaflet-geosearch/dist/geosearch.css';
 
-function SearchControl() {
+function SearchControl({ setUserLocation }) {
     const map = useMap();
 
     useEffect(() => {
@@ -21,12 +21,8 @@ function SearchControl() {
         const searchControl = new GeoSearchControl({
             provider,
             style: 'bar',
-            showMarker: true,
+            showMarker: false,
             showPopup: false,
-            marker: {
-                icon: new L.Icon.Default(),
-                draggable: false,
-            },
             maxMarkers: 1,
             retainZoomLevel: false,
             animateZoom: true,
@@ -37,8 +33,13 @@ function SearchControl() {
 
         map.addControl(searchControl);
 
+        map.on('geosearch/showlocation', (result) => {
+            const { x: longitude, y: latitude } = result.location;
+            setUserLocation({ latitude, longitude });
+        });
+
         return () => map.removeControl(searchControl);
-    }, [map]);
+    }, [map, setUserLocation]);
 
     return null;
 }
@@ -345,7 +346,7 @@ function Leave() {
                                     ละติจูด: {userLocation.latitude}, ลองจิจูด: {userLocation.longitude}
                                 </Popup>
                             </Marker>
-                            <SearchControl />
+                            <SearchControl setUserLocation={setUserLocation} />
                         </MapContainer>
                     </div>
                 )}

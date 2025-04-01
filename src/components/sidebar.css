@@ -20,6 +20,10 @@
     display: block;
 }
 
+.sidebar ul li {
+    margin-bottom: 10px;
+}
+
 .sidebar ul li.active {
     color: #fff;
     background-color: #768dbf;

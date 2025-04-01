@@ -62,12 +62,12 @@ function Navbar({ username, toggleSidebar, isLoggedIn, role }) {
         <div style={{ display: "flex", alignItems: "center", gap: "7px", marginLeft: "5px" }}>
           {isSidebarVisible && (
             <a class="menu" href="#" onClick={toggleSidebar}>
-              <BsList />
+              <BsList style={{ fontSize: "24px" }}/>
             </a>
           )}
           <a class="navbar-brand" href="#" style={{display: "flex", alignItems: "center", gap: "8px"}}>
             <BsClock />
-            Leave and Time Attendance
+            L&T Att
           </a>
         </div>
 
@@ -76,7 +76,7 @@ function Navbar({ username, toggleSidebar, isLoggedIn, role }) {
           <div className="d-flex align-items-center">
             {isSidebarVisible && (
               <>
-                <div className="navbar-text d-none d-sm-block" style={{ marginRight: "15px" }}>
+                <div className="navbar-text" style={{ marginRight: "15px" }}>
                   {username}<br/>
                   {role === "HR" && "แผนกบุคคล"}
                   {role === "Admin" && "ผู้ดูแลระบบ"}

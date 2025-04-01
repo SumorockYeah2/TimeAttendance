@@ -29,6 +29,9 @@ function Checkin() {
     const [jobOptions, setJobOptions] = useState([]);
     const [jobDetails, setJobDetails] = useState({});
     const [place_name, setPlaceName] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [gpsRadius, setGpsRadius] = useState(null);
+    const [jobLocation, setJobLocation] = useState({ latitude: 0, longitude: 0 });
 
     const navigate = useNavigate();
     const idemployees = localStorage.getItem('idemployees');
@@ -67,17 +70,37 @@ function Checkin() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            return data.gps_radius; // Return the GPS radius
+            console.log(data);
+            return data.gps_radius;
         } catch (error) {
             console.error('Error fetching GPS radius:', error);
             return 0.3; // Default value in case of error
         }
     };
+
+
+    const fetchLocation = async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/settings-fetch?jobID=OF01`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            
+            const location = JSON.parse(data.location);
+            return location;
+        } catch (error) {
+            console.error('Error fetching GPS radius:', error);
+            return { latitude: 13.76825599595529, longitude: 100.49368727500557 }; // Default value in case of error
+        }
+    };
     
     useEffect(() => {
         const fetchJobs = async () => {
+            setLoading(true);
             try {
-                const gpsRadius = await fetchGpsRadius(); // ดึงค่ารัศมี GPS จาก settings
+                const gpsRadius = await fetchGpsRadius(); // Fetch GPS radius from settings
+                const locationData = await fetchLocation();
     
                 const response = await fetch(`${API_URL}/get-assigned-jobs/${idemployees}`);
                 if (!response.ok) {
@@ -100,17 +123,28 @@ function Checkin() {
                 const officeOption = {
                     value: "เข้างานออฟฟิศ",
                     label: "เข้างานออฟฟิศ",
-                    latitude: 13.76825599595529,
-                    longitude: 100.49368727500557,
-                    radius: gpsRadius, // ใช้ค่าที่ดึงมาจาก settings
+                    latitude: locationData.latitude,
+                    longitude: locationData.longitude,
+                    radius: gpsRadius, // Use the radius fetched from settings
                     place_name: "สถาบันอาหาร",
                     start_time: "08:30",
                     end_time: "17:30"
                 };
     
                 setJobOptions([officeOption, ...formattedOptions]);
+
+                // Set the default selected option to "office job"
+                setSelectedOption(officeOption.value);
+                setJobDetails({
+                    latitude: officeOption.latitude,
+                    longitude: officeOption.longitude,
+                    radius: officeOption.radius,
+                    place_name: officeOption.place_name
+                })
             } catch (error) {
                 console.error('Error fetching jobs:', error);
+            } finally {
+                setLoading(false);
             }
         };
     
@@ -385,7 +419,7 @@ function Checkin() {
                         />
                     </div>
                     <div>
-                        <button className="btn btn-success" onClick={handleSave} disabled={!selectedOption || (!selectedOption.startsWith("งานนอกสถานที่") && !isWithinRadius)}>ลงเวลาเข้า</button>
+                        <button className="btn btn-success" onClick={handleSave} disabled={loading || !selectedOption || (!selectedOption.startsWith("งานนอกสถานที่") && !isWithinRadius)}>ลงเวลาเข้า</button>
                         {!isWithinRadius && selectedOption && !selectedOption.startsWith("งานนอกสถานที่") && (<p style={{ color: 'red' }}>
                             ท่านไม่สามารถลงเวลาเข้างานได้ เนื่องจากไม่ได้อยู่ภายในรัศมีที่กำหนดไว้ในระบบ<br />กรุณาเดินทางเข้าใกล้สถานที่ตามพิกัดที่ได้รับมอบหมายแล้วลองอีกครั้ง
                         </p>)}

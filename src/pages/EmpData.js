@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import * as XLSX from 'xlsx';
 import './css/EmpData.css';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
 function EmpData() {
     const API_URL = process.env.REACT_APP_API_URL;
@@ -11,6 +12,7 @@ function EmpData() {
     const [selectedImage, setSelectedImage] = useState(null);
     const [departments, setDepartments] = useState([]);
     const [divisions, setDivisions] = useState([]);
+    const [showPassword, setShowPassword] = useState(false);
 
     const fetchEmployeeData = async () => {
         try {
@@ -511,6 +513,10 @@ function EmpData() {
         }
     };
 
+    const togglePasswordVisibility = () => {
+        setShowPassword((prev) => !prev);
+    }
+
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>จัดการข้อมูลพนักงาน</h5>
@@ -790,15 +796,29 @@ function EmpData() {
                                     ))}
                                 </select>
                             </div>
-                            <div>
+                            <div style={{ position: 'relative', width: '100%' }}>
                                 <label>รหัสผ่าน:</label>
                                 <input
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     className="form-control"
+                                    style={{ paddingRight: '40px' }}
                                     value={newEmployee.password || ''}
                                     onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
                                 />
                             </div>
+                            <button
+                                type="button"
+                                onClick={togglePasswordVisibility}
+                                style={{
+                                    position: 'absolute',
+                                    right: '10px',
+                                    transform: 'translateY(-125%)',
+                                    background: 'none',
+                                    border: 'none'
+                                }}
+                            >
+                                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                            </button>
                             <div>
                                 <label>รูปภาพใบหน้า:</label>
                                 <input type="file" className="form-control" onChange={handleImageChange} />

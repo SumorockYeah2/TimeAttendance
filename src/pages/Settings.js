@@ -5,6 +5,14 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-le
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
+function UpdateMapCenter({ center }) {
+    const map = useMap();
+    useEffect(() => {
+        map.setView(center);
+    }, [center, map]);
+    return null;
+}
+
 function Settings({ role }) {
     const API_URL = process.env.REACT_APP_API_URL;
     const navigate = useNavigate();
@@ -26,13 +34,14 @@ function Settings({ role }) {
         navigate('/checkin');
     };
 
-    const [jobLocation] = useState({
+    const [jobLocation, setJobLocation] = useState({
         latitude: 13.76825599595529,
         longitude: 100.49368727500557
     })
+    const [draggableLocation, setDraggableLocation] = useState(jobLocation);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // ดึงค่าจาก database เมื่อ component ถูก mount
         const fetchGpsRadius = async () => {
             try {
                 const response = await fetch(`${API_URL}/api/settings-fetch?jobID=OF01`);
@@ -42,9 +51,42 @@ function Settings({ role }) {
                 }
                 const data = await response.json();
                 console.log('Fetched GPS Radius:', data.gps_radius);
+                console.log('Fetched Location:', data.location);
+
                 setGpsRadius(data.gps_radius);
+
+                console.log('Debugging data.location:', data.location);
+
+                if (typeof data.location === 'string') {
+                    try {
+                        data.location = JSON.parse(data.location);
+                        console.log('Parsed location:', data.location);
+                    } catch (error) {
+                        console.error('Error parsing location data:', error);
+                        return;
+                    }
+                }
+
+                if (data.location && typeof data.location === 'object') {
+                    const { latitude, longitude } = data.location;
+
+                    console.log('Latitude:', latitude);
+                    console.log('Longitude:', longitude);
+
+                    if (latitude && longitude && !isNaN(latitude) && !isNaN(longitude)) {
+                        setJobLocation({ latitude, longitude });
+                        setDraggableLocation({ latitude, longitude });
+                        console.log('Location set to:', latitude, longitude);
+                    } else {
+                        console.error('Invalid latitude or longitude:', { latitude, longitude });
+                    }
+                } else {
+                    console.error('Invalid or missing location data:', data.location);
+                }
             } catch (error) {
                 console.error('Error fetching GPS radius:', error);
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -57,13 +99,18 @@ function Settings({ role }) {
             return;
         }
 
+        console.log('Saving GPS Radius and Location:', {
+            gps_radius: gpsRadius,
+            location: draggableLocation,
+        });
+    
         try {
             const response = await fetch(`${API_URL}/api/settings-update`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ jobID: 'OF01', gps_radius: gpsRadius }), // อัปเดตค่าใน database
+                body: JSON.stringify({ jobID: 'OF01', gps_radius: gpsRadius, location: draggableLocation }), // อัปเดตค่าใน database
             });
 
             if (!response.ok) {
@@ -75,6 +122,13 @@ function Settings({ role }) {
             console.error('Error saving GPS radius:', error);
             alert('เกิดข้อผิดพลาดในการบันทึกค่ารัศมี GPS');
         }
+    };
+
+    const handleMarkerDragEnd = (event) => {
+        const { lat, lng } = event.target.getLatLng();
+        const newLocation = { latitude: lat, longitude: lng };
+        console.log('New draggable location:', newLocation);
+        setDraggableLocation(newLocation);
     };
 
     if (role !== 'HR' && role !== 'Admin') {
@@ -128,18 +182,23 @@ function Settings({ role }) {
                         style={{ height: '400px', width: '75vw' }}
                         key={jobLocation.latitude + jobLocation.longitude}
                     >
+                        <UpdateMapCenter center={[jobLocation.latitude, jobLocation.longitude]} />
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         />
                         <Marker
-                            position={[jobLocation.latitude, jobLocation.longitude]}
-                            draggable={false}
+                            position={[draggableLocation.latitude, draggableLocation.longitude]}
+                            draggable={true}
+                            eventHandlers={{
+                                dragend: handleMarkerDragEnd,
+                            }}
                         >
+                            <Popup>ลากหมุดเพื่อเปลี่ยนตำแหน่ง</Popup>
                         </Marker>
                         <Circle
-                            center={[jobLocation.latitude, jobLocation.longitude]}
-                            radius={gpsRadius * 1000} // Convert km to meters
+                            center={[draggableLocation.latitude, draggableLocation.longitude]}
+                            radius={gpsRadius * 1000}
                             color="blue"
                         />
                     </MapContainer>

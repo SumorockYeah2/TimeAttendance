@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './css/Login2.css'; // นำเข้าไฟล์ CSS
 import UserIcon from '../assets/person_180dp_E3E3E3.png';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { FaceMesh } from '@mediapipe/face_mesh';
 import { Camera } from '@mediapipe/camera_utils';
 
@@ -12,12 +13,14 @@ const Login3 = () => {
   const [livenessVerified, setLivenessVerified] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [userName, setUserName] = useState('');
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const depthHistoryRef = useRef([]);
   const faceMeshRef = useRef(null);
   const navigate = useNavigate();
+  const [cameraOpenedAt, setCameraOpenedAt] = useState(null);
 
   useEffect(() => {
     // ดึงข้อมูลผู้ใช้จาก localStorage
@@ -28,6 +31,10 @@ const Login3 = () => {
       setUserName(user.username); // ใช้ username หากไม่มี name
     }
   }, []);
+  
+  const togglePasswordVisibility = () => {
+    setShowPassword((prev) => !prev);
+  };
 
   const handleEmailClick = () => {
     handleCloseCamera();
@@ -39,6 +46,8 @@ const Login3 = () => {
     setIsCameraOpen(true);
     setIsEmailLogin(false);
     setLivenessVerified(false);
+
+    const cameraOpenedAt = Date.now();
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -144,10 +153,14 @@ const Login3 = () => {
 
     console.log('Blink Detected:', blinkDetected, 'Depth Verified:', depthVerified);
 
-    if (blinkDetected && depthVerified) {
+    const elapsedTime = Date.now() - cameraOpenedAt; // Calculate elapsed time
+
+    if (blinkDetected && depthVerified  && elapsedTime >= 2000) {
       setLivenessVerified(true);
       captureAndSendImage(); // แคปเจอร์ภาพและส่งไปยัง Backend
       handleCloseCamera();
+    } else if (blinkDetected && depthVerified) {
+      console.log('Liveness verified, but waiting for 2 seconds to pass.');
     }
   };
 
@@ -286,12 +299,29 @@ const captureAndSendImage = async () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div style={{ display: 'flex', position: 'relative', width: '100%' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ paddingRight: '40px', flex: 1 }}
+              />
+            <button
+              type="button"
+              onClick={togglePasswordVisibility}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                transform: 'translateY(0%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+            </div>
             <button onClick={handleLogin}>Login</button>
             <p className="forgot">หากลืม Password กรุณาติดต่อ HR</p>
           </div>

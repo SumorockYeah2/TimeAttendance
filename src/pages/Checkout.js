@@ -13,11 +13,13 @@ function Checkout() {
     const [isCheckedIn, setIsCheckedIn] = useState(false);
     const [jobOptions, setJobOptions] = useState([]);
     const [jobDetails, setJobDetails] = useState({});
+    const [loading, setLoading] = useState(true);
 
     const navigate = useNavigate();
     const idemployees = localStorage.getItem('idemployees');
 
     useEffect(() => {
+        setLoading(true);
         fetch(`${API_URL}/get-checked-in-jobs/${idemployees}`)
             .then(response => {
                 if (!response.ok) {
@@ -48,7 +50,8 @@ function Checkout() {
                 setJobOptions(formattedOptions);
                 console.log('Formatted options:', formattedOptions);
             })
-            .catch(error => console.error('Error fetching checked-in jobs:', error));
+            .catch(error => console.error('Error fetching checked-in jobs:', error))
+            .finally(() => setLoading(false));
     }, [idemployees]);
 
     // const options = [
@@ -142,7 +145,7 @@ function Checkout() {
                         getOptionLabel={(option) => `${option.label} (${option.in_time || 'N/A'})`}
                     />
                     <div>
-                        <button className="btn btn-success" onClick={handleCheckout}>ลงเวลาออก</button>
+                        <button className="btn btn-success" onClick={handleCheckout} disabled={loading || !selectedOption}>ลงเวลาออก</button>
                         <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
                     </div>
                 </div>
