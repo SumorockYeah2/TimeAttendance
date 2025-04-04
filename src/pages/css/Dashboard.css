@@ -54,4 +54,6 @@ table, tbody {
     text-align: left;
     z-index: 1001;
     opacity: 1;
+    overflow-y: auto;
+    height: auto;
 }

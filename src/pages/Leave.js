@@ -240,6 +240,8 @@ function Leave() {
         setType(selectedOption.value);
     };
 
+    const isFormValid = type && startDate && startTime && endDate && endTime && description;
+
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>ทำคำร้องลา</h5>
@@ -326,7 +328,7 @@ function Leave() {
             </div>
 
             <div style={{ paddingTop: '10px' }}>
-                <button className="btn btn-success" onClick={handleSend}>ส่งคำร้อง</button>
+                <button className="btn btn-success" onClick={handleSend} disabled={!isFormValid}>ส่งคำร้อง</button>
                 <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
             </div>
         </div>

@@ -320,6 +320,8 @@ function Leave() {
         setUserLocation(newLocation);
     };
 
+    const isFormValid = OffsitePlace && startDate && startTime && endDate && endTime && description;
+
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>คำร้องปฏิบัติงานนอกสถานที่</h5>
@@ -424,7 +426,7 @@ function Leave() {
                 </label>
 
             <div style={{ paddingTop: '10px' }}>
-                <button className="btn btn-success" onClick={handleCheckIn}>ส่งคำร้อง</button>
+                <button className="btn btn-success" onClick={handleCheckIn} disabled={!isFormValid}>ส่งคำร้อง</button>
                 <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
             </div>
         </div>

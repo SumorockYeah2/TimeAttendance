@@ -1,16 +1,31 @@
 import React, {useState, useEffect} from 'react';
 import * as XLSX from 'xlsx';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 function ManageReport() {
     const API_URL = process.env.REACT_APP_API_URL;
     const [workData, setWorkData] = useState([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const fetchAttendanceData = () => {
         fetch(`${API_URL}/attendance`)
             .then(response => response.json())
             .then(data => {
-                console.log('attendance data from database:', data);
-                setWorkData(data);
+                const parsedData = data.map(item => ({
+                    ...item,
+                    location: item.location ? JSON.parse(item.location) : null,
+                }));
+                console.log('attendance data from database:', parsedData);
+                setWorkData(parsedData);
             })
             .catch(error => {
                 console.error('Error fetching attendance data:', error);
@@ -95,61 +110,153 @@ function ManageReport() {
     const handleEdit = (index) => {
         setEditIndex(index);
         setEditedData( {...workData[index ]});
+        setIsModalOpen(true);
     }
+
+    // const handleSave = async () => {
+    //     const updatedData = [...workData];
+    //     const updatedEditedData = {
+    //         ...editedData,
+    //         idattendance: workData[editIndex].idattendance,
+    //         jobID: editedData.jobID,
+    //         jobType: editedData.jobType,
+    //         description: editedData.description,
+    //         in_time: editedData.in_time,
+    //         out_time: editedData.out_time,
+    //         location: editedData.location,
+    //         image_url: editedData.image_url,
+    //     };
+    //     updatedData[editIndex] = updatedEditedData;
+    //     setWorkData(updatedData);
+    //     // updatedData[editIndex] = editedData;
+    //     // setWorkData(updatedData);
+    //     // setEditIndex(null);
+    //     // setEditedData({});
+    //     try {
+    //         const response = await fetch(`${API_URL}/attendance-update`, {
+    //             method: 'PUT',
+    //             headers: {
+    //                 'Content-Type': 'application/json'
+    //             },
+    //             body: JSON.stringify(updatedEditedData)
+    //         });
+
+    //         if (response.ok) {
+    //             setEditIndex(null);
+    //             setEditedData({});
+    //         } else {
+    //             const errorText = await response.text();
+    //             console.error('Error:', errorText);
+    //             alert("บันทึกข้อมูลไม่สำเร็จ");
+    //         }
+    //     } catch (error) {
+    //         console.error('Error:', error);
+    //         alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+    //     }
+    // }
 
     const handleSave = async () => {
-        const updatedData = [...workData];
-        const updatedEditedData = {
-            ...editedData,
-            idattendance: workData[editIndex].idattendance,
-            jobID: editedData.jobID,
-            jobType: editedData.jobType,
-            description: editedData.description,
-            in_time: editedData.in_time,
-            out_time: editedData.out_time,
-            location: editedData.location,
-            image_url: editedData.image_url,
-        };
-        updatedData[editIndex] = updatedEditedData;
-        setWorkData(updatedData);
-        // updatedData[editIndex] = editedData;
-        // setWorkData(updatedData);
-        // setEditIndex(null);
-        // setEditedData({});
-        try {
-            const response = await fetch(`${API_URL}/attendance-update`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updatedEditedData)
-            });
+        if (!editedData.jobID || !editedData.jobType || !editedData.description) {
+            alert('กรุณากรอกข้อมูลให้ครบถ้วนก่อน');
+            return;
+        }
 
-            if (response.ok) {
-                setEditIndex(null);
-                setEditedData({});
+        try {
+            const formattedData = {
+                ...editedData,
+                location: JSON.stringify({
+                    latitude: editedData.location?.lat,
+                    longitude: editedData.location?.lng,
+                }),
+            };
+
+            console.log('Data to save:', formattedData);
+
+            if (editIndex !== null) {
+                const response = await fetch(`${API_URL}/attendance-update`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formattedData),
+                });
+
+                if (response.ok) {
+                    const updatedData = [...workData];
+                    updatedData[editIndex] = formattedData;
+                    setWorkData(updatedData);
+                    alert('แก้ไขข้อมูลสำเร็จ');
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error updating data:', errorText);
+                    alert('แก้ไขข้อมูลไม่สำเร็จ');
+                }
             } else {
-                const errorText = await response.text();
-                console.error('Error:', errorText);
-                alert("บันทึกข้อมูลไม่สำเร็จ");
+                const response = await fetch(`${API_URL}/attendance-add`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formattedData),
+                });
+
+                if (response.ok) {
+                    const newData = await response.json();
+                    setWorkData((prevData) => [...prevData, newData]);
+                    alert('เพิ่มข้อมูลสำเร็จ');
+                } else {
+                    const errorText = await response.text();
+                    console.error('Error adding data:', errorText);
+                    alert('เพิ่มข้อมูลไม่สำเร็จ');
+                }
             }
         } catch (error) {
-            console.error('Error:', error);
-            alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+            console.error('Error saving data:', error);
+            alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
         }
-    }
+    
+        setIsModalOpen(false);
+        setEditedData({});
+        setEditIndex(null);
+    };
 
     const handleChange = (key, value) => {
         setEditedData((prevData) => ({ ...prevData, [key]: value }));
     }
 
     const handleCancel = () => {
+        setEditedData({
+            idattendance: '',
+            jobID: '',
+            jobType: '',
+            description: '',
+            idemployees: '',
+            in_time: '',
+            out_time: '',
+            place_name: '',
+        });
         setEditIndex(null);
         setEditedData({});
+        setIsModalOpen(false);
     };
 
     const [addRemoveMode, setAddRemoveMode] = useState(false);
     const [newEntry, setNewEntry] = useState({});
+
+    const handleAdd = () => {
+        setEditIndex(null);
+        setEditedData({
+            idattendance: '',
+            jobID: '',
+            jobType: '',
+            description: '',
+            idemployees: '',
+            in_time: '',
+            out_time: '',
+            place_name: '',
+        });
+        setIsModalOpen(true);
+    }
 
     const toggleAddRemoveMode = () => {
         setAddRemoveMode((prev) => !prev);
@@ -221,7 +328,7 @@ function ManageReport() {
                 onChange={handleImport}
             />
             <button className="btn btn-primary" onClick={handleExport}>ส่งออกข้อมูล</button>
-            <button className="btn btn-primary" onClick={toggleAddRemoveMode}>{addRemoveMode ? 'เสร็จสิ้น' : 'เพิ่ม/ลบ'}</button>
+            <button className="btn btn-primary" onClick={handleAdd}>เพิ่มข้อมูล</button>
             <div>
                 <table className="table table-bordered table-striped">
                     <thead style={{display:'table-header-group'}}>
@@ -240,108 +347,17 @@ function ManageReport() {
                     <tbody style={{display:'table-header-group'}}>
                         {workData.map((el, index) => (
                             <tr key={index}>
+                                <td style={{ padding: "10px" }}>{el.idattendance}</td>
+                                <td style={{ padding: "10px" }}>{el.jobID}</td>
+                                <td style={{ padding: "10px" }}>{el.jobType}</td>
+                                <td style={{ padding: "10px" }}>{el.description}</td>
+                                <td style={{ padding: "10px" }}>{el.idemployees}</td>
+                                <td style={{ padding: "10px" }}>{el.in_time}</td>
+                                <td style={{ padding: "10px" }}>{el.out_time}</td>
+                                <td style={{ padding: "10px" }}>{el.place_name}</td>
                                 <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.idattendance}
-                                            onChange={(e) => handleChange('idattendance', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.idattendance
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.jobID}
-                                            onChange={(e) => handleChange('jobID', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.jobID
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.jobType}
-                                            onChange={(e) => handleChange('jobType', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.jobType
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.description}
-                                            onChange={(e) => handleChange('description', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.description
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.idemployees}
-                                            onChange={(e) => handleChange('idemployees', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.idemployees
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.in_time}
-                                            onChange={(e) => handleChange('in_time', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.in_time
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.out_time}
-                                            onChange={(e) => handleChange('out_time', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.out_time
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                        <input
-                                            className="form-control"
-                                            value={editedData.place_name}
-                                            onChange={(e) => handleChange('place_name', e.target.value)}
-                                        />
-                                    ) : (
-                                        el.place_name
-                                    )}
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    {editIndex === index ? (
-                                            <>
-                                                <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
-                                                <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
-                                            </>
-                                        ) : addRemoveMode ? (
-                                            <>
-                                                <button className="btn btn-danger" onClick={() => handleRemoveEntry(index)}>ลบ</button>
-                                            </>
-                                        ) : (
-                                            <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไข</button>
-                                        )
-                                    }
+                                    <button className="btn btn-danger" onClick={() => handleRemoveEntry(index)}>ลบ</button>
+                                    <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไข</button>
                                 </td>
                             </tr>
                         ))}
@@ -428,6 +444,117 @@ function ManageReport() {
                         )}
                     </tbody>
                 </table>
+
+                {isModalOpen && (
+                    <div className="modal-overlay">
+                        <div className="modal-content">
+                            <h4>{editIndex !== null ? 'แก้ไขข้อมูล' : 'เพิ่มข้อมูล'}</h4>
+                            <div>
+                                <label>รหัสงาน:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.jobID || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, jobID: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>ประเภทงาน:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.jobType || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, jobType: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>รายละเอียดงาน:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.description || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>รหัสพนักงาน:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.idemployees || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, idemployees: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>เวลาเข้า:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.in_time || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, in_time: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>เวลาออก:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.out_time || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, out_time: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>พิกัดตำแหน่ง (ลากหมุดเพื่อเลือก):</label>
+                                {/* <input
+                                    className="form-control"
+                                    value={editedData.location || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, location: e.target.value })}
+                                /> */}
+                                <MapContainer
+                                    center={[
+                                        editedData.location?.latitude || 13.76825599595529,
+                                        editedData.location?.longitude || 100.49368727500557,
+                                    ]}
+                                    zoom={13}
+                                    style={{ height: '300px', width: '100%' }}
+                                >
+                                    <TileLayer
+                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    />
+                                    <Marker
+                                        position={[
+                                            editedData.location?.latitude || 13.76825599595529,
+                                            editedData.location?.longitude || 100.49368727500557,
+                                        ]}
+                                        draggable={true}
+                                        eventHandlers={{
+                                            dragend: (e) => {
+                                                const latlng = e.target.getLatLng();
+                                                setEditedData((prevData) => ({
+                                                    ...prevData,
+                                                    location: { lat: latlng.lat, lng: latlng.lng },
+                                                }));
+                                                console.log('Updated location: ', {lat: latlng.lat, lng: latlng.lng });
+                                            },
+                                        }}
+                                    >
+                                        <Popup>ลากหมุดเพื่อเลือกตำแหน่ง</Popup>
+                                    </Marker>
+                                </MapContainer>
+                            </div>
+                            <div>
+                                <label>ชื่อสถานที่:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.place_name || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, place_name: e.target.value })}
+                                />
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-success" onClick={handleSave}>
+                                    {editIndex !== null ? 'บันทึก' : 'เพิ่ม'}
+                                </button>
+                                <button className="btn btn-danger" onClick={handleCancel}>
+                                    ปิด
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     )

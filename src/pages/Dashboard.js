@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {VictoryPie} from 'victory';
 import './css/Dashboard.css';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 function Dashboard({ role }) {
     const API_URL = process.env.REACT_APP_API_URL;
@@ -25,6 +35,8 @@ function Dashboard({ role }) {
     const [onTimePercentage, setOnTimePercentage] = useState(0);
     const [offsitePercentage, setOffsitePercentage] = useState(0);
     const [latePercentage, setLatePercentage] = useState(0);
+
+    const [lateEmployeesCount, setLateEmployeesCount] = useState(0);
 
     const handleMonthChange = (event) => {
         setSelectedMonth(parseInt(event.target.value));
@@ -805,6 +817,42 @@ function Dashboard({ role }) {
         }
     }, [empId]);
 
+    useEffect(() => {
+        const lateEmployees = new Set();
+
+        filteredWorkData.forEach((item) => {
+            const inTime = new Date(item.in_time);
+            const jobType = item.jobType;
+
+            console.log('Processing Entry:', {
+                jobID: item.jobID,
+                jobType,
+                inTime,
+                employeeID: item.idemployees,
+            });
+
+            if (jobType === "เข้างานออฟฟิศ") {
+                const startWork = new Date(inTime);
+                startWork.setHours(8, 30, 0, 0);
+
+                if (inTime > startWork) {
+                    lateEmployees.add(item.idemployees);
+                }
+            } else {
+                const jobAssignment = workData.find(job => job.jobID === item.jobID);
+                if (jobAssignment) {
+                    const jobStartTime = new Date(`${jobAssignment.start_date}T${jobAssignment.start_time}`);
+                    if (inTime > jobStartTime) {
+                        lateEmployees.add(item.idemployees);
+                    }
+                }
+            }
+        });
+
+        console.log('Unique Late Employees:', lateEmployees);
+        setLateEmployeesCount(lateEmployees.size);
+    }, [filteredWorkData, workData]);
+
     return (
         <div className="dashboard-container" style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>รายงานผลการทำงาน</h5>
@@ -890,6 +938,9 @@ function Dashboard({ role }) {
                 </div>
                 <div style={{ marginBottom: '10px' }}>
                     <strong>สาย-ออกก่อนเวลา:</strong> {`${metric.totalLateDays || 0} / ${metric.totalWorkingDays || 0} วัน`}
+                    {selectedEmployee === "" && (
+                        <p>พนักงานที่มาสายในเดือนนี้: {lateEmployeesCount} คน</p>
+                    )}
                 </div>
             </div>
 
@@ -1065,6 +1116,45 @@ function Dashboard({ role }) {
                         <p><strong>เวลาเข้า:</strong> {selectedWork.in_time}</p>
                         <p><strong>เวลาออก:</strong> {selectedWork.out_time}</p>
                         <p><strong>ชื่อสถานที่:</strong> {selectedWork.place_name}</p>
+                        <p><strong>ตำแหน่งที่ตั้ง:</strong></p>
+                        <div>
+                            {selectedWork.location ? (
+                                <>
+                                    {console.log('Selected Work Location:', selectedWork.location)}
+                                    {(() => {
+                                        const location =
+                                            typeof selectedWork.location === 'string'
+                                                ? JSON.parse(selectedWork.location)
+                                                : selectedWork.location;
+
+                                        console.log('Parsed location:', location);
+                                    
+                                        return (
+                                            <MapContainer
+                                                key={`${location.latitude}-${location.longitude}`}
+                                                center={[location.latitude, location.longitude]}
+                                                zoom={13}
+                                                style={{ height: '300px', width: '100%' }}
+                                            >
+                                                <TileLayer
+                                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                                />
+                                                <Marker
+                                                    position={[
+                                                        location.latitude,
+                                                        location.longitude,
+                                                    ]}
+                                                >
+                                                    <Popup>ตำแหน่งที่ตั้ง</Popup>
+                                                </Marker>
+                                            </MapContainer>
+                                        );
+                                    })()}
+                                </>
+                            ) : (
+                                <p>ไม่มีข้อมูลตำแหน่งที่ตั้ง</p>
+                            )}
+                        </div>
                         <p><strong>ภาพประกอบการปฏิบัติงาน:</strong></p>
                         {selectedWork && selectedWork.image_url ? (
                             <img 
