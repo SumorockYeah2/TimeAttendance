@@ -1,3 +1,7 @@
+:root {
+  --vh: 100vh;
+}
+
 .App {
   text-align: center;
 }
@@ -63,7 +67,7 @@
   flex-grow: 1;
   overflow-y: auto; 
   transition: margin-left 0.3s ease-in-out;
-  height: calc(100vh - 60px);
+  height: calc(var(--vh, 1vh) * 100);
   display: flex;
 }
 
