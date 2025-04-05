@@ -20,7 +20,8 @@ const Login3 = () => {
   const depthHistoryRef = useRef([]);
   const faceMeshRef = useRef(null);
   const navigate = useNavigate();
-  const [cameraOpenedAt, setCameraOpenedAt] = useState(null);
+  // const [cameraOpenedAt, setCameraOpenedAt] = useState(null);
+  const cameraOpenedAtRef = useRef(null);
 
   useEffect(() => {
     // ดึงข้อมูลผู้ใช้จาก localStorage
@@ -51,7 +52,8 @@ const Login3 = () => {
     setIsEmailLogin(false);
     setLivenessVerified(false);
 
-    const cameraOpenedAt = Date.now();
+    // const cameraOpenedAt = Date.now();
+    cameraOpenedAtRef.current = Date.now();
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -157,7 +159,7 @@ const Login3 = () => {
 
     console.log('Blink Detected:', blinkDetected, 'Depth Verified:', depthVerified);
 
-    const elapsedTime = Date.now() - cameraOpenedAt; // Calculate elapsed time
+    const elapsedTime = Date.now() - cameraOpenedAtRef.current; // Calculate elapsed time
 
     if (blinkDetected && depthVerified  && elapsedTime >= 2000) {
       setLivenessVerified(true);
