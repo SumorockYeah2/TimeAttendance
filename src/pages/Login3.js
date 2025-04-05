@@ -85,7 +85,7 @@ const Login3 = () => {
                         detectionTimeout = setTimeout(() => {
                             processLivenessDetection(results.multiFaceLandmarks[0]);
                             detectionTimeout = null; // รีเซ็ตตัวแปรหลังจากดีเลย์
-                        }, 1000); // ตั้งดีเลย์ 1 วินาที
+                        }, 2000); // ตั้งดีเลย์ 1 วินาที
                     }
                 }
             });
