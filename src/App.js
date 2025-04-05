@@ -39,8 +39,6 @@ function App() {
     setSidebarVisible(!sidebarVisible);
   };
 
-  const mainContainerRef = use100vh();
-
   useEffect(() => {
     const handleStorageChange = () => {
       const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
