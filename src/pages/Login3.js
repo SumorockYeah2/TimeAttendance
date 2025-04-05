@@ -37,9 +37,13 @@ const Login3 = () => {
   };
 
   const handleEmailClick = () => {
-    handleCloseCamera();
-    setIsEmailLogin(true);
-    setIsCameraOpen(false);
+    if (isEmailLogin) {
+      setIsEmailLogin(false);
+    } else {
+      handleCloseCamera();
+      setIsEmailLogin(true);
+      setIsCameraOpen(false);
+    }
   };
 
   const handleCameraClick = async () => {
@@ -329,11 +333,11 @@ const captureAndSendImage = async () => {
       </div>
 
       {/* Email Button */}
-      {!isEmailLogin && (
+      {/* {!isEmailLogin && ( */}
         <button className="email-link" onClick={handleEmailClick}>
           Email
         </button>
-      )}
+      {/* )} */}
     </div>
   );
 };
