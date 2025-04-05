@@ -28,6 +28,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
+import use100vh from './use100vh'; 
+
 function App() {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState('');
@@ -38,6 +40,8 @@ function App() {
   const toggleSidebar = () => {
     setSidebarVisible(!sidebarVisible);
   };
+
+  const mainContainerRef = use100vh();
 
   useEffect(() => {
     const handleStorageChange = () => {
@@ -65,7 +69,7 @@ function App() {
 
   return (
     <Router>
-      <div>
+      <div ref={mainContainerRef}>
         <Navbar className="navbar" username={username} toggleSidebar={toggleSidebar} isLoggedIn={isLoggedIn} role={role}/>
         <div className="main-content">
           {isLoggedIn && role && (

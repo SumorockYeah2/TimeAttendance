@@ -44,6 +44,7 @@
     "react-leaflet-search": "^2.0.1",
     "react-router-dom": "^7.0.2",
     "react-scripts": "5.0.1",
+    "react-use": "^17.6.0",
     "victory": "^37.3.5",
     "victory-canvas": "^37.3.5",
     "victory-pie": "^37.3.5",
