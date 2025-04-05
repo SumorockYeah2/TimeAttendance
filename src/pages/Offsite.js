@@ -323,7 +323,7 @@ function Leave() {
     const isFormValid = OffsitePlace && startDate && startTime && endDate && endTime && description;
 
     return (
-        <div　style={{ height: '100vh', paddingTop: '10px', paddingLeft: '10px' }}>
+        <div　style={{ height: '100vh', overflowY: 'auto', paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>คำร้องปฏิบัติงานนอกสถานที่</h5>
             <div>                
                 <p>เลือกพิกัด</p>
