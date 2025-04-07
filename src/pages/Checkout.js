@@ -31,7 +31,7 @@ function Checkout() {
                 console.log('Fetched checked-in jobs:', data);
 
                 const uniqueJobs = data.reduce((acc, job) => {
-                    if (!acc.some(existingJob => existingJob.jobID === job.jobID)) {
+                    if (!acc.some(existingJob => existingJob.jobname === job.jobname)) {
                         acc.push(job);
                     }
                     return acc;
@@ -86,6 +86,7 @@ function Checkout() {
 
         const checkOutData = {
             jobID: jobDetails.jobID,
+            jobname: selectedOption,
             checkOutDateTime
         };
 
@@ -107,7 +108,7 @@ function Checkout() {
                 alert("ลงเวลาออกงานเรียบร้อย");
                 navigate('/checkin');
             } else {
-                alert("Failed to save check-out data. Please try again.");
+                alert("ไม่สามารถลงเวลาออกงานได้ กรุณาลองใหม่อีกครั้ง");
             }
         } catch (error) {
             console.error('Error saving check-out data:', error);

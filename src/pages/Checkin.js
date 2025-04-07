@@ -337,7 +337,7 @@ function Checkin() {
                 idemployees,
                 userLocation,
                 place_name,
-                selectedOption,
+                selectedOption: finalSelectedOption,
                 textInput,
                 checkInDateTime: currentDateTime,
                 checkOutDateTime: "Pending",

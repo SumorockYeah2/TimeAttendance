@@ -138,12 +138,22 @@ function Dashboard({ role }) {
     const calculateOffsiteMinutes = (startDate, startTime, endDate, endTime) => {
         const start = new Date(`${startDate}T${startTime}`);
         const end = new Date(`${endDate}T${endTime}`);
+        if (isNaN(start) || isNaN(end)) {
+            console.log('Invalid date format:', { startDate, startTime, endDate, endTime });
+        }
+        console.log('Start:', start);
+        console.log('End:', end);
 
         start.setSeconds(0, 0);
         end.setSeconds(0, 0);
 
         let totalMinutes = 0;
     
+        if (start >= end) {
+            console.log('Start time is greater than or equal to end time. Skipping calculation.');
+            return 0;
+        }
+        
         while (start < end) {
             const currentDayStart = new Date(start);
             currentDayStart.setHours(8, 30, 0, 0);
@@ -284,13 +294,15 @@ function Dashboard({ role }) {
             const filteredData = workData.filter((item) => {
                 const inTime = new Date(item.in_time);
                 const matchesEmployee = !selectedEmployee || item.idemployees === selectedEmployee;
-                return (
+                const isValid = (
                     inTime >= startDate &&
                     inTime <= endDate &&
                     item.in_time && item.out_time && !isNaN(Date.parse(item.in_time)) && !isNaN(Date.parse(item.out_time)) &&
                     matchesEmployee &&
                     isWorkingDay(inTime, holidays)
                 );
+                console.log('Filtering item:', { item, isValid });
+                return isValid;
                 // return inTime >= startDate && inTime <= endDate && isWorkingDay(inTime, holidays);
             });
     
@@ -412,6 +424,11 @@ function Dashboard({ role }) {
             console.log('Filtered offsite data:', offsiteData);
             if (offsiteData.length > 0) {
                 offsiteData.forEach((item) => {
+                    if (!item.start_date || !item.start_time || !item.end_date || !item.end_time) {
+                        console.log('Missing date or time for item:', item);
+                        return; // ข้ามรายการที่ข้อมูลไม่สมบูรณ์
+                    }
+
                     const requiredOffsiteMinutes = calculateOffsiteMinutes(
                         item.start_date,
                         item.start_time,
