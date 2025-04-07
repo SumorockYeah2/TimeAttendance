@@ -311,7 +311,7 @@ const captureAndSendImage = async () => {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={{ paddingRight: '40px', flex: 1 }}
+                style={{ paddingRight: '40px', flex: 1, maxWidth: '100%' }}
               />
             <button
               type="button"
