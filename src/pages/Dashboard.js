@@ -194,21 +194,37 @@ function Dashboard({ role }) {
                 });
     
                 if (response.ok) {
+                    console.log('Response is OK:', response.ok);
                     const jobAssignments = await response.json();
+                    console.log('Work Data before merge:', workData);
                     console.log('Fetched job assignments:', jobAssignments);
     
-                    // รวมข้อมูล job_assignments เข้ากับ workData
+                    // merge work data
                     const updatedWorkData = workData.map(item => {
-                        const jobAssignment = jobAssignments.find(job => job.jobID === item.jobID);
-                        return jobAssignment ? { ...item, ...jobAssignment } : item;
+                        const jobAssignment = jobAssignments.find(job => job.jobID === item.jobID && job.idemployees === item.idemployees);
+                        console.log('Matching jobAssignment for jobID:', item.jobID, jobAssignment);
+                        if (jobAssignment) {
+                            const { idemployees, ...restJobAssignment } = jobAssignment;
+                            return { ...item, ...restJobAssignment }; 
+                        }
+                        return item;
                     });
-    
-                    if (JSON.stringify(updatedWorkData) !== JSON.stringify(workData)) {
-                        console.log('Updated work data with job assignments:', updatedWorkData);
-                        setWorkData(updatedWorkData);
-                    }
+                    
+                    console.log('Updated work data:', updatedWorkData);
+
+                    setWorkData(prevWorkData => {
+                        // อัปเดตเฉพาะเมื่อข้อมูลเปลี่ยนแปลง
+                        if (JSON.stringify(prevWorkData) !== JSON.stringify(updatedWorkData)) {
+                            return updatedWorkData;
+                        }
+                        return prevWorkData; // ไม่เปลี่ยนแปลง state
+                    });
+                    // if (JSON.stringify(updatedWorkData) !== JSON.stringify(workData)) {
+                    //     console.log('Updated work data with job assignments:', updatedWorkData);
+                    //     setWorkData(updatedWorkData);
+                    // }
                 } else {
-                    console.error('Failed to fetch job assignments');
+                    console.error('Response is not OK. Failed to fetch job assignments');
                 }
             } catch (error) {
                 console.error('Error fetching job assignments:', error);
@@ -216,7 +232,7 @@ function Dashboard({ role }) {
         };
     
         if (workData.length > 0) fetchJobAssignments();
-    }, [workData]);
+    }, []);
 
     useEffect(() => {
         console.log('Updated Work data:', workData);
@@ -282,7 +298,20 @@ function Dashboard({ role }) {
 
             const workingDays = calculateWorkingDays(startDate, endDate, holidays);
             console.log('Working Days:', workingDays);
-            const totalRequiredMinutes = workingDays * 480;
+            
+            // คำนวณ totalRequiredMinutes และ totalRequiredOffsiteMinutes
+            let totalRequiredMinutes = workingDays * 480;
+            if (selectedEmployee === "") {
+                // ถ้าเลือก "พนักงานทั้งหมด" ให้คูณจำนวนพนักงานใน dropdown
+                totalRequiredMinutes *= employees.length;
+                totalRequiredOffsiteMinutes = employees.length * workingDays * 480; // สมมติว่าทุกคนมีงานนอกสถานที่เต็มเวลา
+            } else {
+                totalRequiredOffsiteMinutes = workingDays * 480; // สำหรับพนักงานคนเดียว
+            }
+
+            console.log('Total required minutes:', totalRequiredMinutes);
+            console.log('Total required offsite minutes:', totalRequiredOffsiteMinutes);
+
 
             const workByDate = new Map();
             filteredData.forEach((item) => {
@@ -325,35 +354,38 @@ function Dashboard({ role }) {
                 inTime.setSeconds(0, 0);
                 outTime.setSeconds(0, 0);
 
-                const startWork = new Date(inTime);
-                startWork.setHours(8, 30, 0, 0);
-
-                const endWork = new Date(outTime);
-                endWork.setHours(17, 30, 0, 0);
-
-                const lunchStart = new Date(inTime);
-                lunchStart.setHours(12, 0, 0, 0);
-
-                const lunchEnd = new Date(inTime);
-                lunchEnd.setHours(13, 0, 0, 0);
-
-                const morningStart = Math.max(inTime, startWork);
-                const morningEnd = Math.min(outTime, endWork);
-
-                // ตัดช่วงเวลา 12.00-13.00 ออกจากการคำนวณ
-                if (morningStart < lunchStart && morningEnd > lunchEnd) {
-                    const beforeLunch = (lunchStart - morningStart) / (1000 * 60);
-                    const afterLunch = (morningEnd - lunchEnd) / (1000 * 60);
-                    totalActualMinutes += Math.max(0, beforeLunch + afterLunch);
-                } else if (morningEnd <= lunchStart || morningStart >= lunchEnd) {
-                    // กรณีที่ไม่ทับกับช่วงพักเที่ยง
-                    totalActualMinutes += Math.max(0, (morningEnd - morningStart) / (1000 * 60));
-                } else if (morningStart < lunchStart && morningEnd <= lunchEnd) {
-                    // กรณีที่สิ้นสุดก่อนหรือระหว่างพักเที่ยง
-                    totalActualMinutes += Math.max(0, (lunchStart - morningStart) / (1000 * 60));
-                } else if (morningStart >= lunchEnd) {
-                    // กรณีที่เริ่มหลังพักเที่ยง (เช่น 13:00)
-                    totalActualMinutes += Math.max(0, (morningEnd - morningStart) / (1000 * 60));
+                while (inTime < outTime) {
+                    const startWork = new Date(inTime);
+                    startWork.setHours(8, 30, 0, 0);
+            
+                    const endWork = new Date(inTime);
+                    endWork.setHours(17, 30, 0, 0);
+            
+                    const lunchStart = new Date(inTime);
+                    lunchStart.setHours(12, 0, 0, 0);
+            
+                    const lunchEnd = new Date(inTime);
+                    lunchEnd.setHours(13, 0, 0, 0);
+            
+                    // คำนวณเวลาในวันปัจจุบัน
+                    const dayStart = Math.max(inTime, startWork);
+                    const dayEnd = Math.min(outTime, endWork);
+            
+                    if (dayStart < lunchStart && dayEnd > lunchEnd) {
+                        const beforeLunch = (lunchStart - dayStart) / (1000 * 60);
+                        const afterLunch = (dayEnd - lunchEnd) / (1000 * 60);
+                        totalActualMinutes += Math.max(0, beforeLunch + afterLunch);
+                    } else if (dayEnd <= lunchStart || dayStart >= lunchEnd) {
+                        totalActualMinutes += Math.max(0, (dayEnd - dayStart) / (1000 * 60));
+                    } else if (dayStart < lunchStart && dayEnd <= lunchEnd) {
+                        totalActualMinutes += Math.max(0, (lunchStart - dayStart) / (1000 * 60));
+                    } else if (dayStart >= lunchEnd) {
+                        totalActualMinutes += Math.max(0, (dayEnd - dayStart) / (1000 * 60));
+                    }
+            
+                    // เลื่อนไปวันถัดไป
+                    inTime.setDate(inTime.getDate() + 1);
+                    inTime.setHours(8, 30, 0, 0);
                 }
             
                 console.log(`Actual minutes for item (${item.in_time} - ${item.out_time}):`, totalActualMinutes);
@@ -366,74 +398,14 @@ function Dashboard({ role }) {
                     startWork.setHours(8, 30, 0, 0);
 
                     const endWork = new Date(outTime);
-                    endWork.setHours(17, 30, 0, 0); // เวลาเลิกงานปกติคือ 17:30
+                    endWork.setHours(17, 30, 0, 0);
 
                     const lunchStart = new Date(inTime);
                     lunchStart.setHours(12, 0, 0, 0);
 
                     const lunchEnd = new Date(inTime);
                     lunchEnd.setHours(13, 0, 0, 0);
-
-                    // if (inTime > startWork) {
-                    //     let lateMinutes = Math.floor((inTime - startWork) / (1000 * 60));
-
-                    //     // ตัดช่วงพักกลางวันออกจากเวลาสาย
-                    //     if (inTime > lunchStart && inTime < lunchEnd) {
-                    //         // หากเวลาเข้างานอยู่ในช่วงพักกลางวัน
-                    //         const overlapWithLunch = Math.max(0, (lunchEnd - inTime) / (1000 * 60));
-                    //         lateMinutes -= overlapWithLunch;
-                    //     } else if (inTime >= lunchEnd) {
-                    //         // หากเวลาเข้างานหลังพักกลางวัน
-                    //         lateMinutes -= 60; // ตัด 1 ชั่วโมงของช่วงพักกลางวันออก
-                    //     }
-                    
-                    //     console.log(`Late minutes for office work (${item.in_time}):`, lateMinutes);
-                    //     totalLateMinutes += Math.max(0, lateMinutes);
-                    // }
-            
-                    // // คำนวณเวลาออกก่อนเวลา
-                    // if (outTime < endWork) {
-                    //     let earlyLeaveMinutes = Math.floor((endWork - outTime) / (1000 * 60));
-                    
-                    //     // ตัดช่วงพักกลางวันออกจากเวลาออกก่อนเวลา
-                    //     if (outTime > lunchStart && outTime < lunchEnd) {
-                    //         // หากเวลาออกงานอยู่ในช่วงพักกลางวัน
-                    //         const overlapWithLunch = Math.max(0, (outTime - lunchStart) / (1000 * 60));
-                    //         earlyLeaveMinutes -= overlapWithLunch;
-                    //     } else if (outTime <= lunchStart) {
-                    //         // หากเวลาออกงานก่อนพักกลางวัน
-                    //         earlyLeaveMinutes -= 60; // ตัด 1 ชั่วโมงของช่วงพักกลางวันออก
-                    //     }
-                    
-                    //     console.log(`Early leave minutes for office work (${item.out_time}):`, earlyLeaveMinutes);
-                    //     totalLateMinutes += Math.max(0, earlyLeaveMinutes);
-                    // }
                 }
-                // // if (item.jobType.includes("งานนอกสถานที่") || item.jobType === "คำร้องย้อนหลัง") {
-                // //     // ใช้ start_date และ start_time จาก job_assignments
-                // //     const startDate = item.start_date; 
-                // //     const startTime = item.start_time; 
-                // //     const endDate = item.end_date; 
-                // //     const endTime = item.end_time; 
-            
-                // //     console.log('Calculating required offsite minutes:', { startDate, startTime, endDate, endTime });
-            
-                // //     // คำนวณเวลาที่ต้องการสำหรับงานนอกสถานที่
-                // //     const requiredOffsiteMinutes = calculateOffsiteMinutes(startDate, startTime, endDate, endTime);
-                // //     totalRequiredOffsiteMinutes += requiredOffsiteMinutes;
-            
-                // //     // ใช้ in_time และ out_time จาก attendance
-                // //     const inDate = item.in_time.split('T')[0];
-                // //     const inTime = item.in_time.split('T')[1];
-                // //     const outDate = item.out_time.split('T')[0];
-                // //     const outTime = item.out_time.split('T')[1];
-            
-                // //     console.log('Calculating actual offsite minutes:', { inDate, inTime, outDate, outTime });
-            
-                // //     // คำนวณเวลานอกสถานที่จริง
-                // //     const offsiteMinutes = calculateOffsiteMinutes(inDate, inTime, outDate, outTime);
-                // //     totalOffsiteMinutes += offsiteMinutes;
-                // // }
             });
             
             const offsiteData = filteredData.filter(item => item.jobType.includes("งานนอกสถานที่") || item.jobType === "คำร้องย้อนหลัง");
@@ -459,39 +431,13 @@ function Dashboard({ role }) {
             } else {
                 console.log('No offsite data found for the selected time range.');
                 totalOffsiteMinutes = 0;
-                totalRequiredOffsiteMinutes = 0; // รีเซ็ตเป็น 0 หากไม่มีข้อมูล
+                totalRequiredOffsiteMinutes = 0;
             }
-
-            // console.log(totalLateMinutes);
-            // totalLateMinutes = Math.max(0, totalLateMinutes - totalOffsiteMinutes);
-            // console.log(totalOffsiteMinutes);
-            // console.log('Total late/early leave minutes after adjustment:', totalLateMinutes);
 
             console.log('Total required minutes:', totalRequiredMinutes);
             console.log('Total actual minutes (working time):', totalActualMinutes);
             console.log('Total offsite minutes:', totalOffsiteMinutes);
             console.log('Total required offsite minutes:', totalRequiredOffsiteMinutes);
-            // console.log('Total late/early leave minutes:', totalLateMinutes);
-
-            // workData.forEach((item) => {
-            //     if (item.jobType.includes("งานนอกสถานที่") || item.jobType === "คำร้องย้อนหลัง") {
-            //         // แยกวันที่และเวลาออกจาก in_time และ out_time
-            //         const startDate = item.in_time.split('T')[0]; // วันที่จาก in_time
-            //         const startTime = item.in_time.split('T')[1]; // เวลาเริ่มต้นจาก in_time
-            //         const endDate = item.out_time.split('T')[0]; // วันที่จาก out_time
-            //         const endTime = item.out_time.split('T')[1]; // เวลาสิ้นสุดจาก out_time
-            
-            //         console.log('Calculating required offsite minutes:', { startDate, startTime, endDate, endTime });
-            //         console.log('Calculating actual offsite minutes:', { inDate: item.in_time.split('T')[0], inTime: item.in_time.split('T')[1], outDate: item.out_time.split('T')[0], outTime: item.out_time.split('T')[1] });
-            
-            //         // คำนวณเวลานอกสถานที่
-            //         const offsiteMinutes = calculateOffsiteMinutes(startDate, startTime, endDate, endTime);
-            //         console.log('Offsite minutes for item:', { item, offsiteMinutes });
-            
-            //         // รวมเวลานอกสถานที่
-            //         totalOffsiteMinutes += offsiteMinutes;
-            //     }
-            // });
 
             const onTimePercentage = totalRequiredMinutes > 0
                 ? (totalActualMinutes / totalRequiredMinutes) * 100

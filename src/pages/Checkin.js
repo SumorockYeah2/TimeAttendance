@@ -322,6 +322,17 @@ function Checkin() {
                 return;
             }
 
+            const existingJobsResponse = await fetch(`${API_URL}/get-checked-in-jobs/${idemployees}`);
+            const existingJobs = await existingJobsResponse.json();
+
+            let finalSelectedOption = selectedOption;
+            let duplicateCount = 1;
+
+            while (existingJobs.some(job => job.jobname === finalSelectedOption)) {
+                duplicateCount++;
+                finalSelectedOption = `${selectedOption} (${duplicateCount})`;
+            }
+            
             const checkInData = {
                 idemployees,
                 userLocation,
