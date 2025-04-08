@@ -332,7 +332,7 @@ function Leave() {
                         <MapContainer
                             center={[userLocation.latitude, userLocation.longitude]}
                             zoom={13}
-                            style={{ height: '400px', width: '75vw' }}
+                            style={{ height: '400px', width: '75vw', zIndex: 1 }}
                         >
                             <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -372,6 +372,12 @@ function Leave() {
                         onChange={(date) => setStartDate(date)} // Update the state on date selection
                         dateFormat="yyyy-MM-dd" // Optional: Customize the format
                         placeholderText="Select a start date" // Placeholder
+                        popperProps={{
+                            style: { zIndex: 1050 }
+                        }}
+                        popperContainer={({ children }) => (
+                            <div style={{ zIndex: 1050 }}>{children}</div>
+                        )}
                     />
                     <input
                         type="time"
@@ -393,6 +399,12 @@ function Leave() {
                         onChange={(date) => setEndDate(date)} // Update the state on date selection
                         dateFormat="yyyy-MM-dd" // Optional: Customize the format
                         placeholderText="Select an end date" // Placeholder
+                        popperProps={{
+                            style: { zIndex: 1050 }
+                        }}
+                        popperContainer={({ children }) => (
+                            <div style={{ zIndex: 1050 }}>{children}</div>
+                        )}
                     />
                     <input
                         type="time"
