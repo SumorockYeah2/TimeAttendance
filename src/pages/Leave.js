@@ -143,39 +143,6 @@ function Leave() {
             return;
         }
 
-        try {
-            const response = await fetch(`${API_URL}/check-leave-overlap`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    idemployees,
-                    startDateTime: startDateTime.toISOString(),
-                    endDateTime: endDateTime.toISOString(),
-                }),
-            });
-    
-            console.log('Checking overlap with:', {
-                idemployees,
-                startDateTime: startDateTime.toISOString(),
-                endDateTime: endDateTime.toISOString(),
-            });
-            const result = await response.json();
-            if (!response.ok) {
-                alert(result.message || 'เกิดข้อผิดพลาดในการตรวจสอบช่วงเวลา');
-                return;
-            }
-    
-            // if (result.overlap) {
-            //     alert('ช่วงเวลาที่คุณต้องการลาชนกับช่วงเวลาที่มีการลงเวลาเข้างานแล้ว');
-            //     return;
-            // }
-        } catch (error) {
-            alert('เกิดข้อผิดพลาดในการตรวจสอบช่วงเวลา');
-            return;
-        }
-
         let leaveTypeText = '';
         switch (type) {
             case 'absence':
