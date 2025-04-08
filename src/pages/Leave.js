@@ -100,9 +100,9 @@ function Leave() {
         const combined = new Date(date);
         combined.setHours(hours, minutes, 0, 0); // ตั้งค่าเวลาเป็น Local Time
 
-        // ชดเชย Timezone สำหรับ GMT+7
-        const timezoneOffset = 7 * 60; // GMT+7 ในหน่วยนาที
-        combined.setMinutes(combined.getMinutes() + timezoneOffset);
+        // // ชดเชย Timezone สำหรับ GMT+7
+        // const timezoneOffset = 7 * 60; // GMT+7 ในหน่วยนาที
+        // combined.setMinutes(combined.getMinutes() + timezoneOffset);
 
         return combined;
     };

@@ -199,37 +199,37 @@ function Approve({ role }) {
         const approvedRequest = leaveData.find(el => el.idrequests === idrequests);
         if (!approvedRequest) return;
     
-        const startDateTime = new Date(`${approvedRequest.start_date}T${approvedRequest.start_time}`);
-        const endDateTime = new Date(`${approvedRequest.end_date}T${approvedRequest.end_time}`);
+        // const startDateTime = new Date(`${approvedRequest.start_date}T${approvedRequest.start_time}`);
+        // const endDateTime = new Date(`${approvedRequest.end_date}T${approvedRequest.end_time}`);
         
-        const leaveHours = calculateWorkingHours(startDateTime, endDateTime, holidays);
-        const leaveDays = leaveHours / 8;
+        // const leaveHours = calculateWorkingHours(startDateTime, endDateTime, holidays);
+        // const leaveDays = leaveHours / 8;
     
-        let leaveTypeColumn;
-        if (approvedRequest.leaveType === 'ลากิจ') {
-            leaveTypeColumn = 'absence_hrs';
-        } else if (approvedRequest.leaveType === 'ลาป่วย') {
-            leaveTypeColumn = 'sick_hrs';
-        } else if (approvedRequest.leaveType === 'ลาพักร้อน') {
-            leaveTypeColumn = 'vacation_hrs';
-        }
+        // let leaveTypeColumn;
+        // if (approvedRequest.leaveType === 'ลากิจ') {
+        //     leaveTypeColumn = 'absence_hrs';
+        // } else if (approvedRequest.leaveType === 'ลาป่วย') {
+        //     leaveTypeColumn = 'sick_hrs';
+        // } else if (approvedRequest.leaveType === 'ลาพักร้อน') {
+        //     leaveTypeColumn = 'vacation_hrs';
+        // }
     
-        if (leaveTypeColumn) {
-            const updateLeaveBalanceResponse = await fetch(`${API_URL}/leave-balance-update/${approvedRequest.idemployees}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    [leaveTypeColumn]: -leaveHours
-                })
-            });
+        // if (leaveTypeColumn) {
+        //     const updateLeaveBalanceResponse = await fetch(`${API_URL}/leave-balance-update/${approvedRequest.idemployees}`, {
+        //         method: 'PUT',
+        //         headers: {
+        //             'Content-Type': 'application/json'
+        //         },
+        //         body: JSON.stringify({
+        //             [leaveTypeColumn]: -leaveHours
+        //         })
+        //     });
     
-            if (!updateLeaveBalanceResponse.ok) {
-                alert('ไม่สามารถอัปเดตวันลาได้');
-                return;
-            }
-        }
+        //     if (!updateLeaveBalanceResponse.ok) {
+        //         alert('ไม่สามารถอัปเดตวันลาได้');
+        //         return;
+        //     }
+        // }
 
         fetch(`${API_URL}/request-update/${idrequests}`, {
             method: 'PUT',
