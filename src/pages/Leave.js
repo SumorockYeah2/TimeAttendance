@@ -100,10 +100,9 @@ function Leave() {
         const combined = new Date(date);
         combined.setHours(hours, minutes, 0, 0); // ตั้งค่าเวลาเป็น Local Time
 
-        // // ชดเชย Timezone สำหรับ GMT+7
-        // const timezoneOffset = 7 * 60; // GMT+7 ในหน่วยนาที
-        // combined.setMinutes(combined.getMinutes() + timezoneOffset);
-
+        // const timezoneOffset = 7 * 60;
+        // combined.setMinutes(combined.getMinutes() - combined.getTimezoneOffset() + timezoneOffset);
+    
         return combined;
     };
 
@@ -193,10 +192,10 @@ function Leave() {
         const leaveRequest = {
             idemployees,
             leaveType: leaveTypeText,
-            leaveStartDate: formatDate(startDate),
-            leaveStartTime: startTime,
-            leaveEndDate: formatDate(endDate),
-            leaveEndTime: endTime,
+            leaveStartDate: formatDate(startDateTime),
+            leaveStartTime: startDateTime.toTimeString().split(':').slice(0, 2).join(':'),
+            leaveEndDate: formatDate(endDateTime),
+            leaveEndTime: endDateTime.toTimeString().split(':').slice(0, 2).join(':'),
             leaveDescription: description,
             leaveStatus: "รออนุมัติ"
         }
