@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Dropdown from 'react-dropdown';
 import 'react-dropdown/style.css';
 import moment from 'moment-timezone';
+import haversine from 'haversine-distance';
 
 function Checkout() {
     const API_URL = process.env.REACT_APP_API_URL;
@@ -14,6 +15,8 @@ function Checkout() {
     const [jobOptions, setJobOptions] = useState([]);
     const [jobDetails, setJobDetails] = useState({});
     const [loading, setLoading] = useState(true);
+    const [isWithinRadius, setIsWithinRadius] = useState(true);
+    const [locationError, setLocationError] = useState("");
 
     const navigate = useNavigate();
     const idemployees = localStorage.getItem('idemployees');
@@ -54,12 +57,43 @@ function Checkout() {
             .finally(() => setLoading(false));
     }, [idemployees]);
 
-    // const options = [
-    //     { value: 'one', label: 'one' },
-    //     { value: 'two', label: 'two' },
-    //     { value: 'Typical Office Job', label: 'office' }
-    // ];
-    // const DefaultOption = options[0].value;
+    const CheckUserLocation = () => {
+        if (selectedOption === "เข้างานออฟฟิศ") {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userLocation = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+
+                    const officeLocation = {
+                        latitude: jobDetails.latitude,
+                        longitude: jobDetails.longitude
+                    };
+
+                    const distance = haversine(userLocation, officeLocation);
+                    console.log("Distance to office:", distance);
+
+                    if (distance <= jobDetails.radius) {
+                        setIsWithinRadius(true);
+                        setLocationError("");
+                    } else {
+                        setIsWithinRadius(false);
+                        setLocationError("ท่านต้องอยู่ในตำแหน่งที่ตั้งและรัศมีที่กำหนดไว้ในระบบ จึงจะลงเวลาออกได้");
+                    }
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                    setIsWithinRadius(false);
+                    setLocationError("ไม่สามารถตรวจสอบตำแหน่งที่ตั้งของท่านได้ กรุณาเปิดการใช้งานตำแหน่งที่ตั้ง");
+                }
+            );
+        } else {
+            setIsWithinRadius(true);
+            setLocationError("");
+        }
+    };
+
     const _onSelect = (selectedOption) => {
         console.log(selectedOption);
         setSelectedOption(selectedOption.value);
@@ -73,6 +107,8 @@ function Checkout() {
             radius: selectedJob.radius
         });
         console.log(jobDetails);
+
+        CheckUserLocation();
     };
 
     const handleCheckout = async () => {
@@ -146,8 +182,13 @@ function Checkout() {
                         getOptionLabel={(option) => `${option.label} (${option.in_time || 'N/A'})`}
                     />
                     <div>
-                        <button className="btn btn-success" onClick={handleCheckout} disabled={loading || !selectedOption}>ลงเวลาออก</button>
+                        <button className="btn btn-success" onClick={handleCheckout} disabled={loading || !selectedOption || !isWithinRadius}>ลงเวลาออก</button>
                         <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
+                        {!isWithinRadius && (
+                            <p style={{ color: 'red' }}>
+                                {locationError}
+                            </p>
+                        )}
                     </div>
                 </div>
             {/* // ) : (
