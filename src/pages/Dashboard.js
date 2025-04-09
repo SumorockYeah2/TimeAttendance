@@ -641,6 +641,8 @@ function Dashboard({ role }) {
                     totalLateDays: 0,
                     totalWorkingDays
                 }));
+                setOnTimePercentage(0);
+                setOffsitePercentage(0);
                 return;
             }
     
