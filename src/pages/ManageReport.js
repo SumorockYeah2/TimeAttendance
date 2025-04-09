@@ -48,7 +48,7 @@ function ManageReport() {
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
             const expectedHeaders = [
-                'idattendance', 'jobID', 'jobType', 'description', 'idemployees', 'in_time', 'out_time', 'location', 'image_url'
+                'idattendance', 'idemployees', 'jobID', 'jobType', 'description', 'in_time', 'out_time', 'location', 'place_name', 'image_url'
             ];
 
             const fileHeaders = jsonData[0];
