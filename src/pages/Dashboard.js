@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {VictoryPie} from 'victory';
 import './css/Dashboard.css';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -136,23 +136,28 @@ function Dashboard({ role }) {
     };
 
     const calculateOffsiteMinutes = (startDate, startTime, endDate, endTime) => {
-        const start = new Date(`${startDate}T${startTime}`);
-        const end = new Date(`${endDate}T${endTime}`);
+        console.log('Input data for calculateOffsiteMinutes:', { startDate, startTime, endDate, endTime });
+
+        const cleanStartTime = startTime.split('+')[0];
+        const cleanEndTime = endTime.split('+')[0];
+
+        const start = new Date(`${startDate}T${cleanStartTime}`);
+        const end = new Date(`${endDate}T${cleanEndTime}`);
+
         if (isNaN(start) || isNaN(end)) {
             console.log('Invalid date format:', { startDate, startTime, endDate, endTime });
+            return 0;
         }
-        console.log('Start:', start);
-        console.log('End:', end);
+
+        if (start >= end) {
+            console.log('Start time is greater than or equal to end time. Skipping calculation.');
+            return 0;
+        }
 
         start.setSeconds(0, 0);
         end.setSeconds(0, 0);
 
         let totalMinutes = 0;
-    
-        if (start >= end) {
-            console.log('Start time is greater than or equal to end time. Skipping calculation.');
-            return 0;
-        }
         
         while (start < end) {
             const currentDayStart = new Date(start);
@@ -204,15 +209,12 @@ function Dashboard({ role }) {
                 });
     
                 if (response.ok) {
-                    console.log('Response is OK:', response.ok);
                     const jobAssignments = await response.json();
-                    console.log('Work Data before merge:', workData);
                     console.log('Fetched job assignments:', jobAssignments);
     
                     // merge work data
                     const updatedWorkData = workData.map(item => {
                         const jobAssignment = jobAssignments.find(job => job.jobID === item.jobID && job.idemployees === item.idemployees);
-                        console.log('Matching jobAssignment for jobID:', item.jobID, jobAssignment);
                         if (jobAssignment) {
                             const { idemployees, ...restJobAssignment } = jobAssignment;
                             return { ...item, ...restJobAssignment }; 
@@ -242,147 +244,482 @@ function Dashboard({ role }) {
         };
     
         if (workData.length > 0) fetchJobAssignments();
-    }, []);
+    }, [API_URL]);
+
+    // useEffect(() => {
+    //     console.log('Updated Work data:', workData);
+    //     const calculateMetrics = () => {
+    //         if (workData.length === 0) {
+    //             console.log('No work data available for calculation.');
+    //             setMetric({
+    //                 onTime: 0,
+    //                 offsite: 0,
+    //                 late: 0,
+    //                 totalActualMinutes: 0,
+    //                 totalRequiredMinutes: 0,
+    //                 totalOffsiteMinutes: 0,
+    //                 totalRequiredOffsiteMinutes: 0,
+    //                 totalLateDays: 0,
+    //             });
+    //             return;
+    //         }
+
+    //         let totalActualMinutes = 0;
+    //         let totalLateDays = 0;
+    //         let totalOffsiteMinutes = 0;
+    //         let totalRequiredOffsiteMinutes = 0;
+            
+    //         let startDate, endDate;
+    //         // กำหนดช่วงเวลา
+    //         if (timeRange === 'monthly') {
+    //             startDate = new Date(selectedYear, selectedMonth - 1, 1);
+    //             endDate = new Date(selectedYear, selectedMonth, 0);
+    //         } else if (timeRange === 'quarterly') {
+    //             const quarterStartMonth = (selectedQuarter - 1) * 3; // เดือนเริ่มต้นของไตรมาส
+    //             startDate = new Date(selectedYear, quarterStartMonth, 1);
+    //             endDate = new Date(selectedYear, quarterStartMonth + 3, 0); // วันสุดท้ายของไตรมาส
+    //         } else if (timeRange === 'yearly') {
+    //             startDate = new Date(selectedYear, 0, 1);
+    //             endDate = new Date(selectedYear, 11, 31);
+    //         }
+
+    //         console.log('Selected Year:', selectedYear);
+    //         console.log('Selected Month:', selectedMonth);
+    //         console.log('Selected Quarter:', selectedQuarter);
+    //         console.log('Start Date:', startDate);
+    //         console.log('End Date:', endDate);
+    
+    //         console.log('Time range:', { startDate, endDate });
+    //         console.log('Filtered work data for offsite:', workData.filter(item => item.jobType.includes("งานนอกสถานที่") || item.jobType === "คำร้องย้อนหลัง"));
+
+    //         workData.forEach((item) => {
+    //             const inTime = new Date(item.in_time);
+    //             const matchesEmployee = !selectedEmployee || item.idemployees === selectedEmployee;
+    //             const isWithinDateRange = inTime >= startDate && inTime <= endDate;
+    //             const isValid = (
+    //                 item.in_time && 
+    //                 !isNaN(Date.parse(item.in_time)) &&
+    //                 isWithinDateRange &&
+    //                 isWorkingDay(inTime, holidays)
+    //             );
+    //             console.log('Item:', item);
+    //             console.log('  Matches Employee:', matchesEmployee);
+    //             console.log('  Is Within Date Range:', isWithinDateRange);
+    //             console.log('  Is Valid:', isValid);
+    //         });
+
+    //         // กรองข้อมูลตามช่วงเวลา
+    //         const filteredData = workData.filter((item) => {
+    //             const inTime = new Date(item.in_time);
+    //             const matchesEmployee = !selectedEmployee || item.idemployees === selectedEmployee;
+    //             const isWithinDateRange = inTime >= startDate && inTime <= endDate;
+    //             const isValid = (
+    //                 item.in_time && !isNaN(Date.parse(item.in_time)) &&
+    //                 matchesEmployee &&
+    //                 isWithinDateRange &&
+    //                 (item.jobType.startsWith("งานนอกสถานที่") || isWorkingDay(inTime, holidays))
+    //             );
+    //             console.log('Filtering item:', { item, isValid });
+    //             return isValid;
+    //             // return inTime >= startDate && inTime <= endDate && isWorkingDay(inTime, holidays);
+    //         });
+    
+    //         console.log('Filtered work data (working days only):', filteredData);
+
+    //         const workingDays = calculateWorkingDays(startDate, endDate, holidays);
+    //         console.log('Working Days:', workingDays);
+            
+    //         // คำนวณ totalRequiredMinutes และ totalRequiredOffsiteMinutes
+    //         let totalRequiredMinutes = workingDays * 480;
+    //         if (selectedEmployee === "") {
+    //             // ถ้าเลือก "พนักงานทั้งหมด" ให้คูณจำนวนพนักงานใน dropdown
+    //             totalRequiredMinutes *= employees.length;
+    //             totalRequiredOffsiteMinutes = employees.length * workingDays * 480; // สมมติว่าทุกคนมีงานนอกสถานที่เต็มเวลา
+    //         } else {
+    //             totalRequiredOffsiteMinutes = workingDays * 480; // สำหรับพนักงานคนเดียว
+    //         }
+
+    //         console.log('Total required minutes:', totalRequiredMinutes);
+    //         console.log('Total required offsite minutes:', totalRequiredOffsiteMinutes);
+
+
+    //         const workByDate = new Map();
+    //         filteredData.forEach((item) => {
+    //             const dateKey = new Date(item.in_time).toDateString();
+    //             if (!workByDate.has(dateKey)) {
+    //                 workByDate.set(dateKey, []);
+    //             }
+    //             workByDate.get(dateKey).push(item);
+    //         });
+            
+    //         workByDate.forEach((records, dateKey) => {
+    //             let isLateOrEarlyLeave = false;
+    
+    //             records.forEach((record) => {
+    //                 const inTime = new Date(record.in_time);
+    //                 const outTime = new Date(record.out_time);
+    
+    //                 const startWork = new Date(inTime);
+    //                 startWork.setHours(8, 30, 0, 0);
+    
+    //                 const endWork = new Date(outTime);
+    //                 endWork.setHours(17, 30, 0, 0);
+    
+    //                 if (inTime > startWork || outTime < endWork) {
+    //                     isLateOrEarlyLeave = true;
+    //                 }
+    //             });
+    
+    //             if (isLateOrEarlyLeave) {
+    //                 totalLateDays++;
+    //             }
+    //         });
+    
+    //         const totalWorkingDays = calculateWorkingDays(startDate, endDate, holidays);
+    
+    //         filteredData.forEach((item) => {
+    //             const inTime = new Date(item.in_time);
+    //             const outTime = new Date(item.out_time);
+
+    //             inTime.setSeconds(0, 0);
+    //             outTime.setSeconds(0, 0);
+
+    //             while (inTime < outTime) {
+    //                 const startWork = new Date(inTime);
+    //                 startWork.setHours(8, 30, 0, 0);
+            
+    //                 const endWork = new Date(inTime);
+    //                 endWork.setHours(17, 30, 0, 0);
+            
+    //                 const lunchStart = new Date(inTime);
+    //                 lunchStart.setHours(12, 0, 0, 0);
+            
+    //                 const lunchEnd = new Date(inTime);
+    //                 lunchEnd.setHours(13, 0, 0, 0);
+            
+    //                 // คำนวณเวลาในวันปัจจุบัน
+    //                 const dayStart = Math.max(inTime, startWork);
+    //                 const dayEnd = Math.min(outTime, endWork);
+            
+    //                 if (dayStart < lunchStart && dayEnd > lunchEnd) {
+    //                     const beforeLunch = (lunchStart - dayStart) / (1000 * 60);
+    //                     const afterLunch = (dayEnd - lunchEnd) / (1000 * 60);
+    //                     totalActualMinutes += Math.max(0, beforeLunch + afterLunch);
+    //                 } else if (dayEnd <= lunchStart || dayStart >= lunchEnd) {
+    //                     totalActualMinutes += Math.max(0, (dayEnd - dayStart) / (1000 * 60));
+    //                 } else if (dayStart < lunchStart && dayEnd <= lunchEnd) {
+    //                     totalActualMinutes += Math.max(0, (lunchStart - dayStart) / (1000 * 60));
+    //                 } else if (dayStart >= lunchEnd) {
+    //                     totalActualMinutes += Math.max(0, (dayEnd - dayStart) / (1000 * 60));
+    //                 }
+            
+    //                 // เลื่อนไปวันถัดไป
+    //                 inTime.setDate(inTime.getDate() + 1);
+    //                 inTime.setHours(8, 30, 0, 0);
+    //             }
+            
+    //             console.log(`Actual minutes for item (${item.in_time} - ${item.out_time}):`, totalActualMinutes);
+
+    //             if (item.jobType === "เข้างานออฟฟิศ") {
+    //                 const inTime = new Date(item.in_time);
+    //                 const outTime = new Date(item.out_time);
+
+    //                 const startWork = new Date(inTime);
+    //                 startWork.setHours(8, 30, 0, 0);
+
+    //                 const endWork = new Date(outTime);
+    //                 endWork.setHours(17, 30, 0, 0);
+
+    //                 const lunchStart = new Date(inTime);
+    //                 lunchStart.setHours(12, 0, 0, 0);
+
+    //                 const lunchEnd = new Date(inTime);
+    //                 lunchEnd.setHours(13, 0, 0, 0);
+    //             }
+    //         });
+            
+    //         console.log('Work Data:', workData);
+    //         console.log('Filtered Data:', filteredData);
+    //         const offsiteData = filteredData.filter(item => item.jobType.startsWith("งานนอกสถานที่") || item.jobType === "คำร้องย้อนหลัง");
+    //         console.log('Filtered offsite data:', offsiteData);
+    //         if (offsiteData.length > 0) {
+    //             offsiteData.forEach((item) => {
+    //                 if (!item.start_date || !item.start_time || !item.end_date || !item.end_time) {
+    //                     console.log('Missing date or time for item:', item);
+    //                     return; // ข้ามรายการที่ข้อมูลไม่สมบูรณ์
+    //                 }
+
+    //                 const requiredOffsiteMinutes = calculateOffsiteMinutes(
+    //                     item.start_date,
+    //                     item.start_time,
+    //                     item.end_date,
+    //                     item.end_time
+    //                 );
+                    
+    //                 totalRequiredOffsiteMinutes += requiredOffsiteMinutes;
+    //                 alert('Total Required Offsite Minutes:', totalRequiredOffsiteMinutes);
+
+    //                 const offsiteMinutes = calculateOffsiteMinutes(
+    //                     item.in_time.split('T')[0],
+    //                     item.in_time.split('T')[1],
+    //                     item.out_time.split('T')[0],
+    //                     item.out_time.split('T')[1]
+    //                 );
+    //                 totalOffsiteMinutes += offsiteMinutes;
+    //                 console.log('Total Offsite Minutes:', totalOffsiteMinutes);
+    //             });
+    //         } else {
+    //             console.log('No offsite data found for the selected time range.');
+    //             totalOffsiteMinutes = 0;
+    //             totalRequiredOffsiteMinutes = 0;
+    //         }
+
+    //         console.log('Total required minutes:', totalRequiredMinutes);
+    //         console.log('Total actual minutes (working time):', totalActualMinutes);
+    //         console.log('Total offsite minutes:', totalOffsiteMinutes);
+    //         console.log('Total required offsite minutes:', totalRequiredOffsiteMinutes);
+
+    //         const onTimePercentage = totalRequiredMinutes > 0
+    //             ? (totalActualMinutes / totalRequiredMinutes) * 100
+    //             : 0;
+
+    //         const offsitePercentage = totalRequiredMinutes > 0
+    //             ? (totalOffsiteMinutes / totalRequiredMinutes) * 100
+    //             : 0;
+
+    //         const latePercentage = totalRequiredMinutes > 0
+    //             ? (totalLateDays / totalWorkingDays) * 100
+    //             : 0;
+
+    //         setMetric({
+    //             onTime: isNaN(onTimePercentage) ? "-" : onTimePercentage.toFixed(2),
+    //             offsite: isNaN(offsitePercentage) ? "-" : offsitePercentage.toFixed(2),
+    //             late: isNaN(latePercentage) ? "-" : latePercentage.toFixed(2),
+    //             totalActualMinutes,
+    //             totalRequiredMinutes,
+    //             totalOffsiteMinutes,
+    //             totalRequiredOffsiteMinutes,
+    //             totalLateDays,
+    //             totalWorkingDays
+    //         });
+
+    //         setOnTimePercentage(onTimePercentage);
+    //         setOffsitePercentage(offsitePercentage);
+    //         setLatePercentage(latePercentage);
+    //     };
+    
+    //     calculateMetrics();
+    // }, [workData, timeRange, selectedMonth, selectedQuarter, selectedYear, selectedEmployee]);
+
+    // const filteredWorkData = workData.filter((item) => {
+    //     const inTime = new Date(item.in_time);
+    
+    //     if (timeRange === 'monthly') {
+    //         return (
+    //             inTime.getFullYear() === selectedYear &&
+    //             inTime.getMonth() + 1 === selectedMonth &&
+    //             (!selectedEmployee || item.idemployees === selectedEmployee)
+    //         );
+    //     } else if (timeRange === 'quarterly') {
+    //         const quarterStartMonth = (selectedQuarter - 1) * 3;
+    //         const quarterEndMonth = quarterStartMonth + 2;
+    //         return (
+    //             inTime.getFullYear() === selectedYear &&
+    //             inTime.getMonth() >= quarterStartMonth &&
+    //             inTime.getMonth() <= quarterEndMonth &&
+    //             (!selectedEmployee || item.idemployees === selectedEmployee)
+    //         );
+    //     } else if (timeRange === 'yearly') {
+    //         return (
+    //             inTime.getFullYear() === selectedYear &&
+    //             (!selectedEmployee || item.idemployees === selectedEmployee)
+    //         );
+    //     }
+    
+    //     return false;
+    // })
+    // .sort((a, b) => new Date(b.in_time) - new Date(a.in_time));
+
+
+    // Memoized filteredWorkData
+    const filteredWorkData = useMemo(() => {
+        return workData
+            .filter((item) => {
+                const inTime = new Date(item.in_time);
+
+                if (timeRange === 'monthly') {
+                    return (
+                        inTime.getFullYear() === selectedYear &&
+                        inTime.getMonth() + 1 === selectedMonth &&
+                        (!selectedEmployee || item.idemployees === selectedEmployee)
+                    );
+                } else if (timeRange === 'quarterly') {
+                    const quarterStartMonth = (selectedQuarter - 1) * 3;
+                    const quarterEndMonth = quarterStartMonth + 2;
+                    return (
+                        inTime.getFullYear() === selectedYear &&
+                        inTime.getMonth() >= quarterStartMonth &&
+                        inTime.getMonth() <= quarterEndMonth &&
+                        (!selectedEmployee || item.idemployees === selectedEmployee)
+                    );
+                } else if (timeRange === 'yearly') {
+                    return (
+                        inTime.getFullYear() === selectedYear &&
+                        (!selectedEmployee || item.idemployees === selectedEmployee)
+                    );
+                }
+
+                return false;
+            })
+            .sort((a, b) => new Date(b.in_time) - new Date(a.in_time));
+    }, [workData, timeRange, selectedMonth, selectedYear, selectedQuarter, selectedEmployee]);
 
     useEffect(() => {
-        console.log('Updated Work data:', workData);
-        const calculateMetrics = () => {
-            if (workData.length === 0) {
-                console.log('No work data available for calculation.');
-                setMetric({
-                    onTime: 0,
-                    offsite: 0,
-                    late: 0,
-                    totalActualMinutes: 0,
-                    totalRequiredMinutes: 0,
-                    totalOffsiteMinutes: 0,
-                    totalRequiredOffsiteMinutes: 0,
-                    totalLateDays: 0,
-                });
-                return;
-            }
+        console.log('Filtered Work Data:', filteredWorkData);
+        // Perform actions based on filteredWorkData
+    }, [filteredWorkData]);
 
-            let totalActualMinutes = 0;
-            let totalLateDays = 0;
-            let totalOffsiteMinutes = 0;
-            let totalRequiredOffsiteMinutes = 0;
-            
-            let startDate, endDate;
-            // กำหนดช่วงเวลา
+    const filteredLeaveData = leaveData.filter((item) => {
+        const startDate = new Date(item.start_date);
+    
+        if (timeRange === 'monthly') {
+            return (
+                startDate.getFullYear() === selectedYear &&
+                startDate.getMonth() + 1 === selectedMonth &&
+                (!selectedEmployee || item.idemployees === selectedEmployee)
+            );
+        } else if (timeRange === 'quarterly') {
+            const quarterStartMonth = (selectedQuarter - 1) * 3;
+            const quarterEndMonth = quarterStartMonth + 2;
+            return (
+                startDate.getFullYear() === selectedYear &&
+                startDate.getMonth() >= quarterStartMonth &&
+                startDate.getMonth() <= quarterEndMonth &&
+                (!selectedEmployee || item.idemployees === selectedEmployee)
+            );
+        } else if (timeRange === 'yearly') {
+            return (
+                startDate.getFullYear() === selectedYear &&
+                (!selectedEmployee || item.idemployees === selectedEmployee)
+            );
+        }
+    
+        return false;
+    })
+    .sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+
+    useEffect(() => {
+        const calculateMetrics = () => {
+            let startDate = new Date();
+            let endDate = new Date();
+
             if (timeRange === 'monthly') {
                 startDate = new Date(selectedYear, selectedMonth - 1, 1);
                 endDate = new Date(selectedYear, selectedMonth, 0);
             } else if (timeRange === 'quarterly') {
-                const quarterStartMonth = (selectedQuarter - 1) * 3; // เดือนเริ่มต้นของไตรมาส
+                const quarterStartMonth = (selectedQuarter - 1) * 3;
                 startDate = new Date(selectedYear, quarterStartMonth, 1);
-                endDate = new Date(selectedYear, quarterStartMonth + 3, 0); // วันสุดท้ายของไตรมาส
+                endDate = new Date(selectedYear, quarterStartMonth + 3, 0);
             } else if (timeRange === 'yearly') {
                 startDate = new Date(selectedYear, 0, 1);
                 endDate = new Date(selectedYear, 11, 31);
             }
 
-            console.log('Selected Year:', selectedYear);
-            console.log('Selected Month:', selectedMonth);
-            console.log('Selected Quarter:', selectedQuarter);
-            console.log('Start Date:', startDate);
-            console.log('End Date:', endDate);
-    
-            console.log('Time range:', { startDate, endDate });
-            console.log('Filtered work data for offsite:', workData.filter(item => item.jobType.includes("งานนอกสถานที่") || item.jobType === "คำร้องย้อนหลัง"));
+            const totalWorkingDays = calculateWorkingDays(startDate, endDate, holidays);
 
-            // กรองข้อมูลตามช่วงเวลา
-            const filteredData = workData.filter((item) => {
-                const inTime = new Date(item.in_time);
-                const matchesEmployee = !selectedEmployee || item.idemployees === selectedEmployee;
-                const isValid = (
-                    inTime >= startDate &&
-                    inTime <= endDate &&
-                    item.in_time && item.out_time && !isNaN(Date.parse(item.in_time)) && !isNaN(Date.parse(item.out_time)) &&
-                    matchesEmployee &&
-                    isWorkingDay(inTime, holidays)
-                );
-                console.log('Filtering item:', { item, isValid });
-                return isValid;
-                // return inTime >= startDate && inTime <= endDate && isWorkingDay(inTime, holidays);
-            });
-    
-            console.log('Filtered work data (working days only):', filteredData);
-
-            const workingDays = calculateWorkingDays(startDate, endDate, holidays);
-            console.log('Working Days:', workingDays);
-            
-            // คำนวณ totalRequiredMinutes และ totalRequiredOffsiteMinutes
-            let totalRequiredMinutes = workingDays * 480;
-            if (selectedEmployee === "") {
-                // ถ้าเลือก "พนักงานทั้งหมด" ให้คูณจำนวนพนักงานใน dropdown
-                totalRequiredMinutes *= employees.length;
-                totalRequiredOffsiteMinutes = employees.length * workingDays * 480; // สมมติว่าทุกคนมีงานนอกสถานที่เต็มเวลา
-            } else {
-                totalRequiredOffsiteMinutes = workingDays * 480; // สำหรับพนักงานคนเดียว
+            if (filteredWorkData.length === 0) {
+                console.log('No work data available for calculation.');
+                setMetric((prevMetric) => ({
+                    ...prevMetric,
+                    onTime: 0,
+                    offsite: 0,
+                    late: 0,
+                    totalActualMinutes: 0,
+                    totalRequiredMinutes: totalWorkingDays * 480 * (selectedEmployee === "" ? employees.length : 1),
+                    totalOffsiteMinutes: 0,
+                    totalRequiredOffsiteMinutes: totalWorkingDays * 480 * (selectedEmployee === "" ? employees.length : 1),
+                    totalLateDays: 0,
+                    totalWorkingDays
+                }));
+                return;
             }
+    
+            let totalActualMinutes = 0;
+            let totalLateDays = 0;
+            let totalOffsiteMinutes = 0;
+            let totalRequiredOffsiteMinutes = totalWorkingDays * 480 * (selectedEmployee === "" ? employees.length : 1);
 
-            console.log('Total required minutes:', totalRequiredMinutes);
-            console.log('Total required offsite minutes:', totalRequiredOffsiteMinutes);
-
-
+            const lateDaysSet = new Set();
             const workByDate = new Map();
-            filteredData.forEach((item) => {
+
+            filteredWorkData.forEach((item) => {
                 const dateKey = new Date(item.in_time).toDateString();
                 if (!workByDate.has(dateKey)) {
                     workByDate.set(dateKey, []);
                 }
                 workByDate.get(dateKey).push(item);
             });
-            
+
             workByDate.forEach((records, dateKey) => {
                 let isLateOrEarlyLeave = false;
-    
+
                 records.forEach((record) => {
-                    const inTime = new Date(record.in_time);
-                    const outTime = new Date(record.out_time);
-    
-                    const startWork = new Date(inTime);
-                    startWork.setHours(8, 30, 0, 0);
-    
-                    const endWork = new Date(outTime);
-                    endWork.setHours(17, 30, 0, 0);
-    
-                    if (inTime > startWork || outTime < endWork) {
-                        isLateOrEarlyLeave = true;
+                    if (!record.jobType.startsWith("งานนอกสถานที่")) {  // Check if job type is not offsite work
+                        const inTime = new Date(record.in_time);
+                        const outTime = record.out_time ? new Date(record.out_time) : null;
+            
+                        const startWork = new Date(inTime);
+                        startWork.setHours(8, 30, 0, 0);  // Set start work time to 8:30 AM
+            
+                        const endWork = new Date(inTime);
+                        endWork.setHours(17, 30, 0, 0);  // Set end work time to 5:30 PM
+            
+                        // Check if the person was late or left early
+                        if (inTime > startWork || (outTime && outTime < endWork)) {
+                            isLateOrEarlyLeave = true;
+                        }
                     }
                 });
-    
+
                 if (isLateOrEarlyLeave) {
-                    totalLateDays++;
+                    lateDaysSet.add(dateKey);
                 }
             });
+
+            totalLateDays = lateDaysSet.size;
+            console.log('Total Late Days:', totalLateDays);
+
+            let totalRequiredMinutes = totalWorkingDays * 480;
+            if (selectedEmployee === "") {
+                totalRequiredMinutes *= employees.length;
+                totalRequiredOffsiteMinutes = employees.length * totalWorkingDays * 480;
+            } else {
+                totalRequiredOffsiteMinutes = totalWorkingDays * 480;
+            }
     
-            const totalWorkingDays = calculateWorkingDays(startDate, endDate, holidays);
-    
-            filteredData.forEach((item) => {
+            filteredWorkData.forEach((item) => {
                 const inTime = new Date(item.in_time);
                 const outTime = new Date(item.out_time);
-
+    
                 inTime.setSeconds(0, 0);
                 outTime.setSeconds(0, 0);
-
+    
                 while (inTime < outTime) {
                     const startWork = new Date(inTime);
                     startWork.setHours(8, 30, 0, 0);
-            
+    
                     const endWork = new Date(inTime);
                     endWork.setHours(17, 30, 0, 0);
-            
+    
                     const lunchStart = new Date(inTime);
                     lunchStart.setHours(12, 0, 0, 0);
-            
+    
                     const lunchEnd = new Date(inTime);
                     lunchEnd.setHours(13, 0, 0, 0);
-            
-                    // คำนวณเวลาในวันปัจจุบัน
+    
                     const dayStart = Math.max(inTime, startWork);
                     const dayEnd = Math.min(outTime, endWork);
-            
+    
                     if (dayStart < lunchStart && dayEnd > lunchEnd) {
                         const beforeLunch = (lunchStart - dayStart) / (1000 * 60);
                         const afterLunch = (dayEnd - lunchEnd) / (1000 * 60);
@@ -394,99 +731,67 @@ function Dashboard({ role }) {
                     } else if (dayStart >= lunchEnd) {
                         totalActualMinutes += Math.max(0, (dayEnd - dayStart) / (1000 * 60));
                     }
-            
-                    // เลื่อนไปวันถัดไป
+    
                     inTime.setDate(inTime.getDate() + 1);
                     inTime.setHours(8, 30, 0, 0);
                 }
-            
-                console.log(`Actual minutes for item (${item.in_time} - ${item.out_time}):`, totalActualMinutes);
-
-                if (item.jobType === "เข้างานออฟฟิศ") {
-                    const inTime = new Date(item.in_time);
-                    const outTime = new Date(item.out_time);
-
-                    const startWork = new Date(inTime);
-                    startWork.setHours(8, 30, 0, 0);
-
-                    const endWork = new Date(outTime);
-                    endWork.setHours(17, 30, 0, 0);
-
-                    const lunchStart = new Date(inTime);
-                    lunchStart.setHours(12, 0, 0, 0);
-
-                    const lunchEnd = new Date(inTime);
-                    lunchEnd.setHours(13, 0, 0, 0);
-                }
-            });
-            
-            const offsiteData = filteredData.filter(item => item.jobType.includes("งานนอกสถานที่") || item.jobType === "คำร้องย้อนหลัง");
-            console.log('Filtered offsite data:', offsiteData);
-            if (offsiteData.length > 0) {
-                offsiteData.forEach((item) => {
-                    if (!item.start_date || !item.start_time || !item.end_date || !item.end_time) {
-                        console.log('Missing date or time for item:', item);
-                        return; // ข้ามรายการที่ข้อมูลไม่สมบูรณ์
-                    }
-
-                    const requiredOffsiteMinutes = calculateOffsiteMinutes(
-                        item.start_date,
-                        item.start_time,
-                        item.end_date,
-                        item.end_time
-                    );
-                    totalRequiredOffsiteMinutes += requiredOffsiteMinutes;
-
+    
+                if (item.jobType.startsWith("งานนอกสถานที่") || item.jobType === "คำร้องย้อนหลัง") {
                     const offsiteMinutes = calculateOffsiteMinutes(
                         item.in_time.split('T')[0],
                         item.in_time.split('T')[1],
                         item.out_time.split('T')[0],
                         item.out_time.split('T')[1]
                     );
-                    totalOffsiteMinutes += offsiteMinutes;
-                });
-            } else {
-                console.log('No offsite data found for the selected time range.');
-                totalOffsiteMinutes = 0;
-                totalRequiredOffsiteMinutes = 0;
-            }
 
-            console.log('Total required minutes:', totalRequiredMinutes);
-            console.log('Total actual minutes (working time):', totalActualMinutes);
+                    if (offsiteMinutes < 0) {
+                        console.error('Negative offsite minutes detected:', offsiteMinutes, item);
+                    }
+
+                    if (offsiteMinutes >= 0) {
+                        totalOffsiteMinutes += offsiteMinutes;
+                    } else {
+                        console.error('Skipping negative offsite minutes:', offsiteMinutes, item);
+                    }
+                    console.log('Total offsite minutes after calculation:', totalOffsiteMinutes);
+                }
+            });
+    
+            console.log('Total actual minutes:', totalActualMinutes);
             console.log('Total offsite minutes:', totalOffsiteMinutes);
-            console.log('Total required offsite minutes:', totalRequiredOffsiteMinutes);
-
+    
             const onTimePercentage = totalRequiredMinutes > 0
                 ? (totalActualMinutes / totalRequiredMinutes) * 100
                 : 0;
-
+    
             const offsitePercentage = totalRequiredMinutes > 0
                 ? (totalOffsiteMinutes / totalRequiredMinutes) * 100
                 : 0;
-
-            const latePercentage = totalRequiredMinutes > 0
+    
+            const latePercentage = totalWorkingDays > 0
                 ? (totalLateDays / totalWorkingDays) * 100
                 : 0;
-
-            setMetric({
+    
+            setMetric((prevMetric) => ({
+                ...prevMetric,
                 onTime: isNaN(onTimePercentage) ? "-" : onTimePercentage.toFixed(2),
                 offsite: isNaN(offsitePercentage) ? "-" : offsitePercentage.toFixed(2),
                 late: isNaN(latePercentage) ? "-" : latePercentage.toFixed(2),
                 totalActualMinutes,
-                totalRequiredMinutes,
+                totalRequiredMinutes: totalWorkingDays * 480 * (selectedEmployee === "" ? employees.length : 1),
                 totalOffsiteMinutes,
                 totalRequiredOffsiteMinutes,
                 totalLateDays,
                 totalWorkingDays
-            });
-
+            }));
+    
             setOnTimePercentage(onTimePercentage);
             setOffsitePercentage(offsitePercentage);
             setLatePercentage(latePercentage);
         };
     
         calculateMetrics();
-    }, [workData, timeRange, selectedMonth, selectedQuarter, selectedYear, selectedEmployee]);
+    }, [filteredWorkData, holidays, selectedMonth, selectedQuarter, selectedYear, selectedEmployee]);
 
     const isWorkingDay = (date, holidays) => {
         const day = date.getDay();
@@ -541,6 +846,8 @@ function Dashboard({ role }) {
     
         fetchHolidays();
     }, []);
+
+    let totalOffsiteMinutes = 0;
 
     useEffect(() => {
         const fetchAssignedJobs = async () => {
@@ -598,6 +905,7 @@ function Dashboard({ role }) {
                     // Update the metric with the total required offsite minutes
                     setMetric(prevMetric => ({
                         ...prevMetric,
+                        totalOffsiteMinutes,
                         totalRequiredOffsiteMinutes
                     }));
                 } else {
@@ -637,64 +945,6 @@ function Dashboard({ role }) {
 
         fetchAttendanceData(); // เรียก API เมื่อ Role ถูกตั้งค่า
     }, []);
-
-    const filteredWorkData = workData.filter((item) => {
-        const inTime = new Date(item.in_time);
-    
-        if (timeRange === 'monthly') {
-            return (
-                inTime.getFullYear() === selectedYear &&
-                inTime.getMonth() + 1 === selectedMonth &&
-                (!selectedEmployee || item.idemployees === selectedEmployee)
-            );
-        } else if (timeRange === 'quarterly') {
-            const quarterStartMonth = (selectedQuarter - 1) * 3;
-            const quarterEndMonth = quarterStartMonth + 2;
-            return (
-                inTime.getFullYear() === selectedYear &&
-                inTime.getMonth() >= quarterStartMonth &&
-                inTime.getMonth() <= quarterEndMonth &&
-                (!selectedEmployee || item.idemployees === selectedEmployee)
-            );
-        } else if (timeRange === 'yearly') {
-            return (
-                inTime.getFullYear() === selectedYear &&
-                (!selectedEmployee || item.idemployees === selectedEmployee)
-            );
-        }
-    
-        return false;
-    })
-    .sort((a, b) => new Date(b.in_time) - new Date(a.in_time));
-
-    const filteredLeaveData = leaveData.filter((item) => {
-        const startDate = new Date(item.start_date);
-    
-        if (timeRange === 'monthly') {
-            return (
-                startDate.getFullYear() === selectedYear &&
-                startDate.getMonth() + 1 === selectedMonth &&
-                (!selectedEmployee || item.idemployees === selectedEmployee)
-            );
-        } else if (timeRange === 'quarterly') {
-            const quarterStartMonth = (selectedQuarter - 1) * 3;
-            const quarterEndMonth = quarterStartMonth + 2;
-            return (
-                startDate.getFullYear() === selectedYear &&
-                startDate.getMonth() >= quarterStartMonth &&
-                startDate.getMonth() <= quarterEndMonth &&
-                (!selectedEmployee || item.idemployees === selectedEmployee)
-            );
-        } else if (timeRange === 'yearly') {
-            return (
-                startDate.getFullYear() === selectedYear &&
-                (!selectedEmployee || item.idemployees === selectedEmployee)
-            );
-        }
-    
-        return false;
-    })
-    .sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
 
     useEffect(() => {
         const fetchLeaveData = async () => {

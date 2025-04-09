@@ -23,6 +23,7 @@ import Login3 from './pages/Login3';
 import Logout from './pages/Logout';
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -31,9 +32,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 function App() {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState('');
-  // const role = "HR";
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true')
+  const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
+  const navigate = useNavigate();
 
   const toggleSidebar = () => {
     setSidebarVisible(!sidebarVisible);
@@ -63,49 +64,84 @@ function App() {
     };
   }, []);
 
+  const logout = () => {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('user');
+    setIsLoggedIn(false);
+    setUsername('');
+    setRole('');
+    navigate('/login3');
+  };
+
+  useEffect(() => {
+    let timeout;
+
+    const resetTimer = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        logout();
+      }, 15 * 60 * 1000);
+    };
+
+    const handleActivity = () => {
+      resetTimer();
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('click', handleActivity);
+
+    resetTimer();
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('click', handleActivity);
+      clearTimeout(timeout);
+    };
+  }, [isLoggedIn]);
+
   return (
-    <Router>
-      <div>
-        <Navbar className="navbar" username={username} toggleSidebar={toggleSidebar} isLoggedIn={isLoggedIn} role={role}/>
-        <div className="main-content">
-          {isLoggedIn && role && (
-            <div className={`sidebar-container ${sidebarVisible ? 'visible' : ''}`}>
-              <Sidebar
-                toggleSidebar={toggleSidebar} 
-                sidebarVisible={sidebarVisible} 
-                role={role}
-                username={username}
-              />
-            </div>
-          )}
-          <div className={`content ${sidebarVisible ? 'with-sidebar' : ''}`}>
-            <Routes>
-              {/* <Route path="/login" element={<Login />} /> */}
-              <Route path="/login3" element={<Login3 />} />
-              <Route path="/dashboard" element={isLoggedIn ? <Dashboard role={role} /> : <Navigate to ="/login3" />} />
-              {/* <Route path="/location" element={isLoggedIn ? <Location /> : <Navigate to ="/login" />} /> */}
-              <Route path="/checkin" element={isLoggedIn ? <Checkin /> : <Navigate to ="/login3" />} />
-              <Route path="/checkout" element={isLoggedIn ? <Checkout /> : <Navigate to ="/login3" />} />
-              <Route path="/home2" element={isLoggedIn ? <Home2 /> : <Navigate to ="/login3" />} />
-              <Route path="/leave" element={isLoggedIn ? <Leave /> : <Navigate to ="/login3" />} />
-              <Route path="/offsite" element={isLoggedIn ? <Offsite /> : <Navigate to ="/login3" />} /> 
-              <Route path="/settings" element={isLoggedIn ? <Settings role={role} /> : <Navigate to ="/login3" />} />
-              <Route path="/approve" element={isLoggedIn ? <Approve role={role} /> : <Navigate to ="/login3" />} />
-              <Route path="/assign" element={isLoggedIn ? <Assign role={role} /> : <Navigate to ="/login3" />} />
-              <Route path="/empdata" element={isLoggedIn ? <EmpData /> : <Navigate to ="/login3" />} />
-              <Route path="/managereport" element={isLoggedIn ? <ManageReport /> : <Navigate to ="/login3" />} />
-              <Route path="/leavedays" element={isLoggedIn ? <LeaveDays /> : <Navigate to ="/login3" />} />
-              <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to ="/login3" />} />
-              {/* <Route path="/roles" element={isLoggedIn ? <RoleData /> : <Navigate to ="/login" />} /> */}
-
-              <Route path="/logout" element={isLoggedIn ? <Logout /> : <Navigate to ="/login3" />} />
-
-              <Route path="/" element={isLoggedIn ? <Navigate to="/checkin" /> : <Navigate to="/login3" />} />
-            </Routes>
+    <div>
+      <Navbar className="navbar" username={username} toggleSidebar={toggleSidebar} isLoggedIn={isLoggedIn} role={role}/>
+      <div className="main-content">
+        {isLoggedIn && role && (
+          <div className={`sidebar-container ${sidebarVisible ? 'visible' : ''}`}>
+            <Sidebar
+              toggleSidebar={toggleSidebar} 
+              sidebarVisible={sidebarVisible} 
+              role={role}
+              username={username}
+            />
           </div>
+        )}
+        <div className={`content ${sidebarVisible ? 'with-sidebar' : ''}`}>
+          <Routes>
+            {/* <Route path="/login" element={<Login />} /> */}
+            <Route path="/login3" element={<Login3 />} />
+            <Route path="/dashboard" element={isLoggedIn ? <Dashboard role={role} /> : <Navigate to ="/login3" />} />
+            {/* <Route path="/location" element={isLoggedIn ? <Location /> : <Navigate to ="/login" />} /> */}
+            <Route path="/checkin" element={isLoggedIn ? <Checkin /> : <Navigate to ="/login3" />} />
+            <Route path="/checkout" element={isLoggedIn ? <Checkout /> : <Navigate to ="/login3" />} />
+            <Route path="/home2" element={isLoggedIn ? <Home2 /> : <Navigate to ="/login3" />} />
+            <Route path="/leave" element={isLoggedIn ? <Leave /> : <Navigate to ="/login3" />} />
+            <Route path="/offsite" element={isLoggedIn ? <Offsite /> : <Navigate to ="/login3" />} /> 
+            <Route path="/settings" element={isLoggedIn ? <Settings role={role} /> : <Navigate to ="/login3" />} />
+            <Route path="/approve" element={isLoggedIn ? <Approve role={role} /> : <Navigate to ="/login3" />} />
+            <Route path="/assign" element={isLoggedIn ? <Assign role={role} /> : <Navigate to ="/login3" />} />
+            <Route path="/empdata" element={isLoggedIn ? <EmpData /> : <Navigate to ="/login3" />} />
+            <Route path="/managereport" element={isLoggedIn ? <ManageReport /> : <Navigate to ="/login3" />} />
+            <Route path="/leavedays" element={isLoggedIn ? <LeaveDays /> : <Navigate to ="/login3" />} />
+            <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to ="/login3" />} />
+            {/* <Route path="/roles" element={isLoggedIn ? <RoleData /> : <Navigate to ="/login" />} /> */}
+
+            <Route path="/logout" element={isLoggedIn ? <Logout /> : <Navigate to ="/login3" />} />
+
+            <Route path="/" element={isLoggedIn ? <Navigate to="/checkin" /> : <Navigate to="/login3" />} />
+          </Routes>
         </div>
       </div>
-    </Router>
+    </div>
   );
 }
 
