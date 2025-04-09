@@ -5,50 +5,8 @@ function Approve({ role }) {
     const API_URL = process.env.REACT_APP_API_URL;
     const [leaveData, setLeaveData] = useState([]);
     const [subordinates, setSubordinates] = useState([]);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
-
-    // const fetchLeaveData = () => {
-    //     fetch('https://localhost:3001/request-get')
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             console.log('Role:', role);
-    //             console.log('Subordinates:', subordinates);
-    //             console.log('leaveData from database:', data);
-    //             if (role === 'Admin') {
-    //                 setLeaveData(data);
-    //             } else {
-    //                 const filteredLeaveData = data.filter(request => subordinates.includes(request.idemployees));
-    //                 console.log('Filtered Leave Data:', filteredLeaveData);
-    //                 setLeaveData(filteredLeaveData);
-    //             }
-    //         })
-    //         .catch(error => {
-    //             console.error('Error fetching leave data:', error);
-    //         });
-    // };
-
-
-    // const fetchSubordinates = () => {
-    //     fetch(`https://localhost:3001/employee-data`)
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             const filteredEmployees = data.filter(emp => emp.supervisor === idemployees); // กรองพนักงานที่ supervisor ตรงกับ idemployees
-    //             setSubordinates(filteredEmployees.map(emp => emp.idemployees)); // เก็บเฉพาะ idemployees ของพนักงาน
-    //         })
-    //         .catch(error => {
-    //             console.error('Error fetching employee data:', error);
-    //         });
-    // };
-
-    // useEffect(() => {
-    //     if (subordinates.length > 0) {
-    //         fetchLeaveData(); // ดึงข้อมูลคำร้องลาเมื่อได้ข้อมูลพนักงานที่ตัวเองเป็นหัวหน้า
-    //     }
-    // }, [subordinates]);
-
-    // useEffect(() => {
-    //     fetchSubordinates(); // ดึงข้อมูลพนักงานที่ตัวเองเป็นหัวหน้า
-    // }, []);
 
     const [holidays, setHolidays] = useState([]);
 
@@ -89,6 +47,7 @@ function Approve({ role }) {
     }, []);
 
     const fetchSubordinatesAndLeaveData = async () => {
+        setLoading(true);
         try {
             const response = await fetch(`${API_URL}/employee-data`);
             const data = await response.json();
@@ -118,6 +77,8 @@ function Approve({ role }) {
             }
         } catch (error) {
             console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -384,174 +345,178 @@ function Approve({ role }) {
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>อนุมัติ/ปฏิเสธคำร้อง</h5>
             <div>
-                <table className="table table-bordered table-striped">
-                    <thead style={{display:'table-header-group'}}>
-                        <tr>
-                            <th style={{ padding: "10px" }}>ประเภท</th>
-                            <th style={{ padding: "10px" }}>รหัสพนักงาน</th>
-                            <th style={{ padding: "10px" }}>พิกัดสถานที่</th>
-                            <th style={{ padding: "10px" }}>ชื่อสถานที่</th>
-                            <th style={{ padding: "10px" }}>วันที่เริ่มต้น</th>
-                            <th style={{ padding: "10px" }}>เวลาเริ่มต้น</th>
-                            <th style={{ padding: "10px" }}>วันที่สิ้นสุด</th>
-                            <th style={{ padding: "10px" }}>เวลาสิ้นสุด</th>
-                            {/* <th style={{ padding: "10px" }}>หัวหน้า</th> */}
-                            <th style={{ padding: "10px" }}>รายละเอียด</th>
-                            <th style={{ padding: "10px" }}>สถานะ</th>
-                            {/* {role === 'HR' && <th style={{ padding: "10px" }}>Edited by</th> } */}
-                            <th style={{ padding: "10px" }}>การทำงาน</th>
-                        </tr>
-                    </thead>
-                    <tbody style={{display:'table-header-group'}}>
-                        {leaveData
-                            .filter(el => el.status !== "อนุมัติแล้ว" && el.status !== "ไม่อนุมัติ") // Filter out approved/rejected requests
-                            .map((el, index) => (
-                                <tr key={el.idrequests}>
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.leaveType}
-                                                onChange={(e) => handleChange('leaveType', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.leaveType
-                                        )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.idemployees}
-                                                onChange={(e) => handleChange('idemployees', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.idemployees
-                                        )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.location}
-                                                onChange={(e) => handleChange('location', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.location
-                                        )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.place_name}
-                                                onChange={(e) => handleChange('place_name', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.place_name // ค่าจะเป็น "none"
-                                        )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.start_date}
-                                                onChange={(e) => handleChange('start_date', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.start_date
-                                        )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.start_time}
-                                                onChange={(e) => handleChange('start_time', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.start_time
-                                        )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.end_date}
-                                                onChange={(e) => handleChange('end_date', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.end_date
-                                        )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.end_time}
-                                                onChange={(e) => handleChange('end_time', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.end_time
-                                        )}
-                                    </td>
-                                    {/* <td style={{ padding: "10px" }}>
-                                        {editIndex === index ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.supervisor}
-                                                onChange={(e) => handleChange('supervisor', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.supervisor
-                                        )}
-                                    </td> */}
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.reason}
-                                                onChange={(e) => handleChange('reason', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.reason
-                                        )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                        {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                            <input
-                                                className="form-control"
-                                                value={editedData.status}
-                                                onChange={(e) => handleChange('status', e.target.value)}
-                                            />
-                                        ) : (
-                                            el.status
-                                        )}
-                                    </td>
-                                    <td style={{ padding: "10px" }}>
-                                        {(role === 'Supervisor' || role === 'Admin') && (
-                                            <>
-                                                <button className="btn btn-success" onClick={() => handleApprove(el.idrequests)}>อนุมัติ</button>
-                                                <button className="btn btn-danger" onClick={() => handleReject(el.idrequests)}>ปฏิเสธ</button>
-                                            </>
-                                        )}
-                                        {(role === 'HR' || role === 'Admin') && (
-                                            <>
-                                                {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
-                                                    <>
-                                                        <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
-                                                        <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
-                                                    </>
-                                                ) : (
-                                                    <button className="btn btn-primary" onClick={() => handleEdit(el.idrequests)}>แก้ไขข้อมูล</button>
-                                                )}
-                                            </>
-                                        )}
-                                    </td>
-                                </tr>
-                        ))}
-                    </tbody>
-                </table>
+                {loading ? (
+                    <p>กำลังโหลดคำร้อง...</p>
+                ) : (
+                    <table className="table table-bordered table-striped">
+                        <thead style={{display:'table-header-group'}}>
+                            <tr>
+                                <th style={{ padding: "10px" }}>ประเภท</th>
+                                <th style={{ padding: "10px" }}>รหัสพนักงาน</th>
+                                <th style={{ padding: "10px" }}>พิกัดสถานที่</th>
+                                <th style={{ padding: "10px" }}>ชื่อสถานที่</th>
+                                <th style={{ padding: "10px" }}>วันที่เริ่มต้น</th>
+                                <th style={{ padding: "10px" }}>เวลาเริ่มต้น</th>
+                                <th style={{ padding: "10px" }}>วันที่สิ้นสุด</th>
+                                <th style={{ padding: "10px" }}>เวลาสิ้นสุด</th>
+                                {/* <th style={{ padding: "10px" }}>หัวหน้า</th> */}
+                                <th style={{ padding: "10px" }}>รายละเอียด</th>
+                                <th style={{ padding: "10px" }}>สถานะ</th>
+                                {/* {role === 'HR' && <th style={{ padding: "10px" }}>Edited by</th> } */}
+                                <th style={{ padding: "10px" }}>การทำงาน</th>
+                            </tr>
+                        </thead>
+                        <tbody style={{display:'table-header-group'}}>
+                            {leaveData
+                                .filter(el => el.status !== "อนุมัติแล้ว" && el.status !== "ไม่อนุมัติ") // Filter out approved/rejected requests
+                                .map((el, index) => (
+                                    <tr key={el.idrequests}>
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.leaveType}
+                                                    onChange={(e) => handleChange('leaveType', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.leaveType
+                                            )}
+                                        </td>
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.idemployees}
+                                                    onChange={(e) => handleChange('idemployees', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.idemployees
+                                            )}
+                                        </td>
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.location}
+                                                    onChange={(e) => handleChange('location', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.location
+                                            )}
+                                        </td>
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.place_name}
+                                                    onChange={(e) => handleChange('place_name', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.place_name // ค่าจะเป็น "none"
+                                            )}
+                                        </td>
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.start_date}
+                                                    onChange={(e) => handleChange('start_date', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.start_date
+                                            )}
+                                        </td>
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.start_time}
+                                                    onChange={(e) => handleChange('start_time', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.start_time
+                                            )}
+                                        </td>
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.end_date}
+                                                    onChange={(e) => handleChange('end_date', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.end_date
+                                            )}
+                                        </td>
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.end_time}
+                                                    onChange={(e) => handleChange('end_time', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.end_time
+                                            )}
+                                        </td>
+                                        {/* <td style={{ padding: "10px" }}>
+                                            {editIndex === index ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.supervisor}
+                                                    onChange={(e) => handleChange('supervisor', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.supervisor
+                                            )}
+                                        </td> */}
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.reason}
+                                                    onChange={(e) => handleChange('reason', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.reason
+                                            )}
+                                        </td>
+                                        <td style={{ padding: "10px" }}>
+                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                <input
+                                                    className="form-control"
+                                                    value={editedData.status}
+                                                    onChange={(e) => handleChange('status', e.target.value)}
+                                                />
+                                            ) : (
+                                                el.status
+                                            )}
+                                        </td>
+                                        <td style={{ padding: "10px" }}>
+                                            {(role === 'Supervisor' || role === 'Admin') && (
+                                                <>
+                                                    <button className="btn btn-success" onClick={() => handleApprove(el.idrequests)}>อนุมัติ</button>
+                                                    <button className="btn btn-danger" onClick={() => handleReject(el.idrequests)}>ปฏิเสธ</button>
+                                                </>
+                                            )}
+                                            {(role === 'HR' || role === 'Admin') && (
+                                                <>
+                                                    {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                                        <>
+                                                            <button className="btn btn-success" onClick={handleSave}>บันทึก</button>
+                                                            <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
+                                                        </>
+                                                    ) : (
+                                                        <button className="btn btn-primary" onClick={() => handleEdit(el.idrequests)}>แก้ไขข้อมูล</button>
+                                                    )}
+                                                </>
+                                            )}
+                                        </td>
+                                    </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </div>
         </div>
     )
