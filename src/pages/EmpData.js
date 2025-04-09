@@ -13,8 +13,12 @@ function EmpData() {
     const [departments, setDepartments] = useState([]);
     const [divisions, setDivisions] = useState([]);
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const fetchEmployeeData = async () => {
+        setLoading(true);
+        setError(null);
         try {
             const response = await fetch(`${API_URL}/employee-data`);
             const employeeData = await response.json();
@@ -34,8 +38,10 @@ function EmpData() {
     
             console.log('Merged Employee Data:', mergedData);
             setEmpData(mergedData);
+            setLoading(false);
         } catch (error) {
             console.error('Error fetching employee data:', error);
+            setError('เกิดข้อผิดพลาดในการโหลดข้อมูลพนักงาน');
         }
     };
 
@@ -520,7 +526,7 @@ function EmpData() {
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>จัดการข้อมูลพนักงาน</h5>
-            <button className="btn btn-primary" onClick={() => document.getElementById('file-upload').click()}>นำเข้าข้อมูล</button>
+            <button className="btn btn-primary" onClick={() => document.getElementById('file-upload').click()} disabled={loading}>นำเข้าข้อมูล</button>
             <input
                 type="file"
                 id="file-upload"
@@ -528,149 +534,155 @@ function EmpData() {
                 accept=".xlsx,.xls"
                 onChange={handleImport}
             />
-            <button className="btn btn-primary" onClick={handleExport}>ส่งออกข้อมูล</button>
-            <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)}>เพิ่ม</button>
+            <button className="btn btn-primary" onClick={handleExport} disabled={loading}>ส่งออกข้อมูล</button>
+            <button className="btn btn-primary" onClick={() => setIsAddModalOpen(true)} disabled={loading}>เพิ่ม</button>
             {/* <button className="btn btn-primary" onClick={toggleAddRemoveMode}>{addRemoveMode ? 'เสร็จสิ้น' : 'ลบ'}</button> */}
             <div>
-                <table className="table table-bordered table-striped">
-                    <thead style={{display:'table-header-group'}}>
-                        <tr>
-                            <th style={{ padding: "10px" }}>รหัสพนักงาน</th>
-                            <th style={{ padding: "10px" }}>ชื่อ</th>
-                            <th style={{ padding: "10px" }}>ฝ่าย</th>
-                            <th style={{ padding: "10px" }}>แผนก</th>
-                            <th style={{ padding: "10px" }}>เพศ</th>
-                            <th style={{ padding: "10px" }}>ระดับสิทธิ์ในระบบ</th>
-                            <th style={{ padding: "10px" }}>เบอร์โทรศัพท์</th>
-                            <th style={{ padding: "10px" }}>อีเมล</th>
-                            <th style={{ padding: "10px" }}>ไอพีโฟน</th>
-                            <th style={{ padding: "10px" }}>หัวหน้า</th>
-                            <th style={{ padding: "10px" }}>การทำงาน</th>
-                        </tr>
-                    </thead>
-                    <tbody style={{display:'table-header-group'}}>
-                        {empData.map((el, index) => {
-                            // ค้นหาชื่อหัวหน้าจาก supervisors
-                            const supervisorName = supervisors.find(
-                                (supervisor) => String(supervisor.idemployees) === String(el.supervisor)
-                            )?.name || 'ไม่มีหัวหน้า';
+                {loading ? (
+                    <p>กำลังโหลด...</p>
+                ) : error ? (
+                    <p style={{ color: 'red' }}>{error}</p>
+                ) : (
+                    <table className="table table-bordered table-striped">
+                        <thead style={{display:'table-header-group'}}>
+                            <tr>
+                                <th style={{ padding: "10px" }}>รหัสพนักงาน</th>
+                                <th style={{ padding: "10px" }}>ชื่อ</th>
+                                <th style={{ padding: "10px" }}>ฝ่าย</th>
+                                <th style={{ padding: "10px" }}>แผนก</th>
+                                <th style={{ padding: "10px" }}>เพศ</th>
+                                <th style={{ padding: "10px" }}>ระดับสิทธิ์ในระบบ</th>
+                                <th style={{ padding: "10px" }}>เบอร์โทรศัพท์</th>
+                                <th style={{ padding: "10px" }}>อีเมล</th>
+                                <th style={{ padding: "10px" }}>ไอพีโฟน</th>
+                                <th style={{ padding: "10px" }}>หัวหน้า</th>
+                                <th style={{ padding: "10px" }}>การทำงาน</th>
+                            </tr>
+                        </thead>
+                        <tbody style={{display:'table-header-group'}}>
+                            {empData.map((el, index) => {
+                                // ค้นหาชื่อหัวหน้าจาก supervisors
+                                const supervisorName = supervisors.find(
+                                    (supervisor) => String(supervisor.idemployees) === String(el.supervisor)
+                                )?.name || 'ไม่มีหัวหน้า';
 
-                            return (
-                                <tr key={index}>
-                                    <td style={{ padding: '10px' }}>{el.idemployees}</td>
-                                    <td style={{ padding: '10px' }}>{el.name}</td>
-                                    <td style={{ padding: '10px' }}>{el.department}</td>
-                                    <td style={{ padding: '10px' }}>{el.division}</td>
-                                    <td style={{ padding: '10px' }}>{el.gender}</td>
-                                    <td style={{ padding: '10px' }}>
-                                        {el.role === 'HR' && 'แผนกบุคคล'}
-                                        {el.role === 'Admin' && 'ผู้ดูแลระบบ'}
-                                        {el.role === 'Supervisor' && 'หัวหน้า'}
-                                        {el.role === 'Employee' && 'พนักงาน'}
-                                    </td>
-                                    <td style={{ padding: '10px' }}>{el.phone}</td>
-                                    <td style={{ padding: '10px' }}>{el.email}</td>
-                                    <td style={{ padding: '10px' }}>{el.ipphone}</td>
-                                    <td style={{ padding: '10px' }}>{supervisorName}</td> {/* แสดงชื่อหัวหน้า */}
-                                    <td style={{ padding: '10px' }}>
-                                        <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไข</button>
-                                        <button className="btn btn-danger" onClick={() => handleRemoveEmployee(index)}>ลบ</button>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    {addRemoveMode && (
-                        <tr>
-                            <td>
-                                <input
-                                    className="form-control"
-                                    value={newEmployee.idemployees || ''}
-                                    onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, idemployees: e.target.value })
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    className="form-control"
-                                    value={newEmployee.name || ''}
-                                    onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, name: e.target.value })
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    className="form-control"
-                                    value={newEmployee.department || ''}
-                                    onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, department: e.target.value })
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    className="form-control"
-                                    value={newEmployee.division || ''}
-                                    onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, division: e.target.value })
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    className="form-control"
-                                    value={newEmployee.gender || ''}
-                                    onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, gender: e.target.value })
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    className="form-control"
-                                    value={newEmployee.role || ''}
-                                    onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, role: e.target.value })
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    className="form-control"
-                                    value={newEmployee.phone || ''}
-                                    onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, phone: e.target.value })
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    className="form-control"
-                                    value={newEmployee.email || ''}
-                                    onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, email: e.target.value })
-                                    }
-                                />
-                            </td>
-                            <td>
-                                <input
-                                    className="form-control"
-                                    value={newEmployee.ipphone || ''}
-                                    onChange={(e) =>
-                                        setNewEmployee({ ...newEmployee, ipphone: e.target.value })
-                                    }
-                                />
-                            </td>
-                            <td style={{ padding: "10px" }}>
-                                <button className="btn btn-success" onClick={handleAddEmployee}>
-                                    เพิ่ม
-                                </button>
-                            </td>
-                        </tr>
-                    )}
-                    </tbody>
-                </table>
+                                return (
+                                    <tr key={index}>
+                                        <td style={{ padding: '10px' }}>{el.idemployees}</td>
+                                        <td style={{ padding: '10px' }}>{el.name}</td>
+                                        <td style={{ padding: '10px' }}>{el.department}</td>
+                                        <td style={{ padding: '10px' }}>{el.division}</td>
+                                        <td style={{ padding: '10px' }}>{el.gender}</td>
+                                        <td style={{ padding: '10px' }}>
+                                            {el.role === 'HR' && 'แผนกบุคคล'}
+                                            {el.role === 'Admin' && 'ผู้ดูแลระบบ'}
+                                            {el.role === 'Supervisor' && 'หัวหน้า'}
+                                            {el.role === 'Employee' && 'พนักงาน'}
+                                        </td>
+                                        <td style={{ padding: '10px' }}>{el.phone}</td>
+                                        <td style={{ padding: '10px' }}>{el.email}</td>
+                                        <td style={{ padding: '10px' }}>{el.ipphone}</td>
+                                        <td style={{ padding: '10px' }}>{supervisorName}</td> {/* แสดงชื่อหัวหน้า */}
+                                        <td style={{ padding: '10px' }}>
+                                            <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไข</button>
+                                            <button className="btn btn-danger" onClick={() => handleRemoveEmployee(index)}>ลบ</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        {addRemoveMode && (
+                            <tr>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEmployee.idemployees || ''}
+                                        onChange={(e) =>
+                                            setNewEmployee({ ...newEmployee, idemployees: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEmployee.name || ''}
+                                        onChange={(e) =>
+                                            setNewEmployee({ ...newEmployee, name: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEmployee.department || ''}
+                                        onChange={(e) =>
+                                            setNewEmployee({ ...newEmployee, department: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEmployee.division || ''}
+                                        onChange={(e) =>
+                                            setNewEmployee({ ...newEmployee, division: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEmployee.gender || ''}
+                                        onChange={(e) =>
+                                            setNewEmployee({ ...newEmployee, gender: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEmployee.role || ''}
+                                        onChange={(e) =>
+                                            setNewEmployee({ ...newEmployee, role: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEmployee.phone || ''}
+                                        onChange={(e) =>
+                                            setNewEmployee({ ...newEmployee, phone: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEmployee.email || ''}
+                                        onChange={(e) =>
+                                            setNewEmployee({ ...newEmployee, email: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td>
+                                    <input
+                                        className="form-control"
+                                        value={newEmployee.ipphone || ''}
+                                        onChange={(e) =>
+                                            setNewEmployee({ ...newEmployee, ipphone: e.target.value })
+                                        }
+                                    />
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                    <button className="btn btn-success" onClick={handleAddEmployee}>
+                                        เพิ่ม
+                                    </button>
+                                </td>
+                            </tr>
+                        )}
+                        </tbody>
+                    </table>
+                )}
             </div>
 
             {isAddModalOpen && (

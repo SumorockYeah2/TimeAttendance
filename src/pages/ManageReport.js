@@ -15,8 +15,12 @@ function ManageReport() {
     const API_URL = process.env.REACT_APP_API_URL;
     const [workData, setWorkData] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const fetchAttendanceData = () => {
+        setLoading(true);
+        setError(null);
         fetch(`${API_URL}/attendance`)
             .then(response => response.json())
             .then(data => {
@@ -26,9 +30,11 @@ function ManageReport() {
                 }));
                 console.log('attendance data from database:', parsedData);
                 setWorkData(parsedData);
+                setLoading(false);
             })
             .catch(error => {
                 console.error('Error fetching attendance data:', error);
+                setError('เกิดข้อผิดพลาดในการโหลดข้อมูลการลงเวลาเข้า-ออกงาน');
             });
     };
 
@@ -319,7 +325,7 @@ function ManageReport() {
     return (
         <div　style={{ paddingTop: '10px', paddingLeft: '10px' }}>
             <h5>จัดการรายงานผลการทำงาน</h5>
-            <button className="btn btn-primary"  onClick={() => document.getElementById('file-upload').click()}>นำเข้าข้อมูล</button>
+            <button className="btn btn-primary"  onClick={() => document.getElementById('file-upload').click()}  disabled={loading}>นำเข้าข้อมูล</button>
             <input
                 type="file"
                 id="file-upload"
@@ -327,123 +333,129 @@ function ManageReport() {
                 accept=".xlsx,.xls"
                 onChange={handleImport}
             />
-            <button className="btn btn-primary" onClick={handleExport}>ส่งออกข้อมูล</button>
-            <button className="btn btn-primary" onClick={handleAdd}>เพิ่มข้อมูล</button>
+            <button className="btn btn-primary" onClick={handleExport} disabled={loading}>ส่งออกข้อมูล</button>
+            <button className="btn btn-primary" onClick={handleAdd} disabled={loading}>เพิ่มข้อมูล</button>
             <div>
-                <table className="table table-bordered table-striped">
-                    <thead style={{display:'table-header-group'}}>
-                        <tr>
-                            <th style={{ padding: "10px" }}>ลำดับ</th>
-                            <th style={{ padding: "10px" }}>รหัสงาน</th>
-                            <th style={{ padding: "10px" }}>ประเภทงาน</th>
-                            <th style={{ padding: "10px" }}>รายละเอียดงาน</th>
-                            <th style={{ padding: "10px" }}>รหัสพนักงาน</th>
-                            <th style={{ padding: "10px" }}>เวลาเข้า</th>
-                            <th style={{ padding: "10px" }}>เวลาออก</th>
-                            <th style={{ padding: "10px" }}>ชื่อสถานที่</th>
-                            <th style={{ padding: "10px" }}>การทำงาน</th>
-                        </tr>
-                    </thead>
-                    <tbody style={{display:'table-header-group'}}>
-                        {workData.map((el, index) => (
-                            <tr key={index}>
-                                <td style={{ padding: "10px" }}>{el.idattendance}</td>
-                                <td style={{ padding: "10px" }}>{el.jobID}</td>
-                                <td style={{ padding: "10px" }}>{el.jobType}</td>
-                                <td style={{ padding: "10px" }}>{el.description}</td>
-                                <td style={{ padding: "10px" }}>{el.idemployees}</td>
-                                <td style={{ padding: "10px" }}>{el.in_time}</td>
-                                <td style={{ padding: "10px" }}>{el.out_time}</td>
-                                <td style={{ padding: "10px" }}>{el.place_name}</td>
-                                <td style={{ padding: "10px" }}>
-                                    <button className="btn btn-danger" onClick={() => handleRemoveEntry(index)}>ลบ</button>
-                                    <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไข</button>
-                                </td>
-                            </tr>
-                        ))}
-                        {addRemoveMode && (
+                {loading ? (
+                    <p>กำลังโหลด...</p>
+                ) : error ? (
+                    <p style={{ color: 'red' }}>{error}</p>
+                ) : (
+                    <table className="table table-bordered table-striped">
+                        <thead style={{display:'table-header-group'}}>
                             <tr>
-                                <td>
-                                    <input
-                                        className="form-control"
-                                        value={newEntry.idattendance || ''}
-                                        onChange={(e) =>
-                                            setNewEntry({ ...newEntry, idattendance: e.target.value })
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        className="form-control"
-                                        value={newEntry.jobID || ''}
-                                        onChange={(e) =>
-                                            setNewEntry({ ...newEntry, jobID: e.target.value })
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        className="form-control"
-                                        value={newEntry.jobType || ''}
-                                        onChange={(e) =>
-                                            setNewEntry({ ...newEntry, jobType: e.target.value })
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        className="form-control"
-                                        value={newEntry.description || ''}
-                                        onChange={(e) =>
-                                            setNewEntry({ ...newEntry, description: e.target.value })
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        className="form-control"
-                                        value={newEntry.idemployees || ''}
-                                        onChange={(e) =>
-                                            setNewEntry({ ...newEntry, idemployees: e.target.value })
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        className="form-control"
-                                        value={newEntry.in_time || ''}
-                                        onChange={(e) =>
-                                            setNewEntry({ ...newEntry, in_time: e.target.value })
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        className="form-control"
-                                        value={newEntry.out_time || ''}
-                                        onChange={(e) =>
-                                            setNewEntry({ ...newEntry, out_time: e.target.value })
-                                        }
-                                    />
-                                </td>
-                                <td>
-                                    <input
-                                        className="form-control"
-                                        value={newEntry.place_name || ''}
-                                        onChange={(e) =>
-                                            setNewEntry({ ...newEntry, place_name: e.target.value })
-                                        }
-                                    />
-                                </td>
-                                <td style={{ padding: "10px" }}>
-                                    <button className="btn btn-success" onClick={handleAddEntry}>
-                                        เพิ่ม
-                                    </button>
-                                </td>
+                                <th style={{ padding: "10px" }}>ลำดับ</th>
+                                <th style={{ padding: "10px" }}>รหัสงาน</th>
+                                <th style={{ padding: "10px" }}>ประเภทงาน</th>
+                                <th style={{ padding: "10px" }}>รายละเอียดงาน</th>
+                                <th style={{ padding: "10px" }}>รหัสพนักงาน</th>
+                                <th style={{ padding: "10px" }}>เวลาเข้า</th>
+                                <th style={{ padding: "10px" }}>เวลาออก</th>
+                                <th style={{ padding: "10px" }}>ชื่อสถานที่</th>
+                                <th style={{ padding: "10px" }}>การทำงาน</th>
                             </tr>
-                        )}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody style={{display:'table-header-group'}}>
+                            {workData.map((el, index) => (
+                                <tr key={index}>
+                                    <td style={{ padding: "10px" }}>{el.idattendance}</td>
+                                    <td style={{ padding: "10px" }}>{el.jobID}</td>
+                                    <td style={{ padding: "10px" }}>{el.jobType}</td>
+                                    <td style={{ padding: "10px" }}>{el.description}</td>
+                                    <td style={{ padding: "10px" }}>{el.idemployees}</td>
+                                    <td style={{ padding: "10px" }}>{el.in_time}</td>
+                                    <td style={{ padding: "10px" }}>{el.out_time}</td>
+                                    <td style={{ padding: "10px" }}>{el.place_name}</td>
+                                    <td style={{ padding: "10px" }}>
+                                        <button className="btn btn-danger" onClick={() => handleRemoveEntry(index)}>ลบ</button>
+                                        <button className="btn btn-primary" onClick={() => handleEdit(index)}>แก้ไข</button>
+                                    </td>
+                                </tr>
+                            ))}
+                            {addRemoveMode && (
+                                <tr>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={newEntry.idattendance || ''}
+                                            onChange={(e) =>
+                                                setNewEntry({ ...newEntry, idattendance: e.target.value })
+                                            }
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={newEntry.jobID || ''}
+                                            onChange={(e) =>
+                                                setNewEntry({ ...newEntry, jobID: e.target.value })
+                                            }
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={newEntry.jobType || ''}
+                                            onChange={(e) =>
+                                                setNewEntry({ ...newEntry, jobType: e.target.value })
+                                            }
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={newEntry.description || ''}
+                                            onChange={(e) =>
+                                                setNewEntry({ ...newEntry, description: e.target.value })
+                                            }
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={newEntry.idemployees || ''}
+                                            onChange={(e) =>
+                                                setNewEntry({ ...newEntry, idemployees: e.target.value })
+                                            }
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={newEntry.in_time || ''}
+                                            onChange={(e) =>
+                                                setNewEntry({ ...newEntry, in_time: e.target.value })
+                                            }
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={newEntry.out_time || ''}
+                                            onChange={(e) =>
+                                                setNewEntry({ ...newEntry, out_time: e.target.value })
+                                            }
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            className="form-control"
+                                            value={newEntry.place_name || ''}
+                                            onChange={(e) =>
+                                                setNewEntry({ ...newEntry, place_name: e.target.value })
+                                            }
+                                        />
+                                    </td>
+                                    <td style={{ padding: "10px" }}>
+                                        <button className="btn btn-success" onClick={handleAddEntry}>
+                                            เพิ่ม
+                                        </button>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                )}
 
                 {isModalOpen && (
                     <div className="modal-overlay">
