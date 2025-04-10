@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css'; // Import Leaflet's CSS
 import L from 'leaflet';
@@ -21,47 +20,18 @@ function Checkin() {
     const [userLocation, setUserLocation] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [fileName, setFileName] = useState("");
-    const [isFormCompleted, setIsFormCompleted] = useState(false);
     const [selectedOption, setSelectedOption] = useState(null);
     const [textInput, setTextInput] = useState("");
-    const [isCheckedIn, setIsCheckedIn] = useState(false);
     const [isWithinRadius, setIsWithinRadius] = useState(false);
     const [jobOptions, setJobOptions] = useState([]);
     const [jobDetails, setJobDetails] = useState({});
-    const [place_name, setPlaceName] = useState("");
     const [loading, setLoading] = useState(true);
-    const [gpsRadius, setGpsRadius] = useState(null);
-    const [jobLocation, setJobLocation] = useState({ latitude: 0, longitude: 0 });
 
-    const navigate = useNavigate();
     const idemployees = localStorage.getItem('idemployees');
 
     useEffect(() => {
         getUserLocation();
-        const checkInStatus = localStorage.getItem('isCheckedIn');
-        if (checkInStatus === 'true') {
-            setIsCheckedIn(true); // User is already checked in
-        }
     }, []);
-
-    const checkLeaveOverlap = async () => {
-        try {
-            const response = await fetch(`${API_URL}/request-get`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-    
-            if (!response.ok) {
-                console.error('Error fetching leave requests:', response.statusText);
-                return false;
-            }
-        } catch (error) {
-            console.error('Error checking leave overlap:', error);
-            return false;
-        }
-    };
 
     const fetchGpsRadius = async () => {
         try {
@@ -77,7 +47,6 @@ function Checkin() {
             return 0.3; // Default value in case of error
         }
     };
-
 
     const fetchLocation = async () => {
         try {
@@ -133,7 +102,6 @@ function Checkin() {
     
                 setJobOptions([officeOption, ...formattedOptions]);
 
-                // Set the default selected option to "office job"
                 setSelectedOption(officeOption.value);
                 setJobDetails({
                     latitude: officeOption.latitude,
@@ -152,7 +120,6 @@ function Checkin() {
     }, [idemployees]);
 
     const getUserLocation = () => {
-        console.log("Wee!");
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -208,7 +175,6 @@ function Checkin() {
             radius: selectedJob.radius,
             place_name: selectedJob.place_name
         });
-        setPlaceName(selectedJob.place_name);
         console.log(jobDetails);
     };
 
@@ -249,12 +215,7 @@ function Checkin() {
 
     const handleSave = async () => {
         console.log(selectedOption, textInput, userLocation);
-        const hasLeaveOverlap = await checkLeaveOverlap();
-        if (hasLeaveOverlap) {
-            alert("ไม่สามารถลงเวลาเข้างานได้ เนื่องจากเวลาชนกับช่วงเวลาที่ลางาน");
-            return;
-        }
-    
+
         if (selectedOption) {
             const skipRadiusCheck = selectedOption.startsWith("งานนอกสถานที่");
 
@@ -263,7 +224,6 @@ function Checkin() {
                 return;
             }
 
-            setIsFormCompleted(true);
             localStorage.setItem('isCheckedIn', 'true');
 
             const currentDateTime = moment().tz('Asia/Bangkok').format();
