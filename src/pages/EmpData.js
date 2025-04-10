@@ -113,6 +113,15 @@ function EmpData() {
                 expectedHeaders.forEach((header, index) => {
                     obj[header] = row[index];
                 });
+
+                // if (!obj.password || obj.password.trim() === '') {
+                //     obj.password = 'defaultpassword';
+                // }
+                // if (!obj.email || obj.email.trim() === '') {
+                //     obj.email = `${obj.idemployees}@mycompany.com`;
+                // }
+                obj.username = obj.name; 
+
                 return obj;
             });
             // setEmpData((prevData) => [...prevData, ...dataToImport]);
@@ -135,10 +144,40 @@ function EmpData() {
                         },
                         body: JSON.stringify(employee)
                     });
+
+                    const credentialsResponse = await fetch(`${API_URL}/user-credentials-add`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            idusers: employee.idemployees,
+                            idemployees: employee.idemployees,
+                            role: employee.role,
+                            password: employee.password,
+                            email: employee.email,
+                            username: employee.name
+                        })
+                    });
+
+                    console.log('Adding user credentials:', {
+                        idusers: employee.idemployees,
+                        idemployees: employee.idemployees,
+                        role: employee.role,
+                        password: employee.password,
+                        email: employee.email,
+                        username: employee.name
+                    });
+                    if (!credentialsResponse.ok) {
+                        const errorText = await credentialsResponse.text();
+                        console.error('Error adding user credentials:', errorText);
+                        alert('Failed to add user credentials');
+                    }
                 }
             }
 
             fetchEmployeeData();
+            alert('นำเข้าข้อมูลพนักงานสำเร็จ');
         }
 
         reader.readAsArrayBuffer(file);
@@ -230,6 +269,39 @@ function EmpData() {
             });
 
             if (response.ok) {
+                const credentialsCheckResponse = await fetch(`${API_URL}/user-credentials`, {
+                    method: 'GET'
+                });
+
+                const credentialsData = await credentialsCheckResponse.json();
+                const hasCredentials = credentialsData.some(
+                    (cred) => String(cred.idemployees) === String(newEmployee.idemployees)
+                );
+
+                if (!hasCredentials) {
+                    const credentialsResponse = await fetch(`${API_URL}/user-credentials-add`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            idusers: newEmployee.idemployees,
+                            idemployees: newEmployee.idemployees,
+                            role: newEmployee.role,
+                            password: newEmployee.password || 'defaultpassword',
+                            email: newEmployee.email,
+                            username: newEmployee.name,
+                        }),
+                    });
+    
+                    if (!credentialsResponse.ok) {
+                        const errorText = await credentialsResponse.text();
+                        console.error('Error adding user credentials:', errorText);
+                        alert('เพิ่มข้อมูลใน user_credentials ไม่สำเร็จ');
+                        return;
+                    }
+                }
+
                 const credentialsResponse = await fetch(`${API_URL}/user-credentials-update`, {
                     method: 'PUT',
                     headers: {
