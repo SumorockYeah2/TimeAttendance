@@ -142,7 +142,7 @@ const Login3 = () => {
       }
     }
 
-    const blinkDetected = closedFrames >= 2;
+    const blinkDetected = closedFrames >= 3;
 
 
     // const status = (leftEAR < 0.25 || rightEAR < 0.25) ? "ผ่าน" : "ไม่ผ่าน";
