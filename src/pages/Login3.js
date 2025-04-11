@@ -194,15 +194,33 @@ const Login3 = () => {
     return result;
   };
 
+  const noseZHistory = [];
+
+  const checkZDepthMovement = (lm) => {
+    const noseZ = lm[1].z;
+
+    noseZHistory.push(noseZ);
+    if (noseZHistory.length > 30) noseZHistory.shift();
+
+    const minZ = Math.min(...noseZHistory);
+    const maxZ = Math.max(...noseZHistory);
+    const deltaZ = Math.abs(maxZ - minZ);
+
+    const moved = deltaZ > 0.002;
+    console.log(`NOSE Z Δ: ${deltaZ.toFixed(6)} → ${moved ? "✅ ขยับ" : "❌ นิ่ง"}`);
+
+    return moved;
+  };
   const processLivenessDetection = (landmarks) => {
     const blinkDetected = detectBlink(landmarks);
     const depthVerified = checkDepthLiveness(landmarks, depthHistoryRef);
+    const zDepthMoved = checkZDepthMovement(landmarks);
 
-    console.log('Blink Detected:', blinkDetected, 'Depth Verified:', depthVerified);
+    console.log('Blink Detected:', blinkDetected, 'Depth Verified:', depthVerified, 'Z-Move:', zDepthMoved);
 
     const elapsedTime = Date.now() - cameraOpenedAtRef.current; // Calculate elapsed time
 
-    if (blinkDetected && depthVerified  && elapsedTime >= 2000) {
+    if (blinkDetected && depthVerified && zDepthMoved && elapsedTime >= 2000) {
       setLivenessVerified(true);
       captureAndSendImage(); // แคปเจอร์ภาพและส่งไปยัง Backend
       handleCloseCamera();
