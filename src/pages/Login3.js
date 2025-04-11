@@ -123,11 +123,35 @@ const Login3 = () => {
     }
   };
 
+  const earHistory = [];
+  
   const detectBlink = (lm) => {
     const leftEAR = calcEAR(lm, [33, 160, 158, 133, 153, 144]);
     const rightEAR = calcEAR(lm, [362, 385, 387, 263, 373, 380]);
-    console.log(leftEAR, rightEAR);
-    return leftEAR < 0.25 || rightEAR < 0.25;
+    const avgEAR = (leftEAR + rightEAR) / 2;
+
+    earHistory.push(avgEAR);
+    if (earHistory.length > 10) earHistory.shift();
+
+    let closedFrames = 0;
+    for (let i = earHistory.length - 1; i >=0; i--) {
+      if (earHistory[i] < 0.25) {
+        closedFrames++;
+      } else {
+        break;
+      }
+    }
+
+    const blinkDetected = closedFrames >= 2;
+
+
+    // const status = (leftEAR < 0.25 || rightEAR < 0.25) ? "ผ่าน" : "ไม่ผ่าน";
+    // console.log(leftEAR, rightEAR);
+    const status = blinkDetected ? "ผ่าน" : "ไม่ผ่าน";
+    console.log(`LEFT EAR: ${leftEAR.toFixed(3)}, RIGHT EAR: ${rightEAR.toFixed(3)} → ${status}`);
+    // return leftEAR < 0.25 || rightEAR < 0.25;
+
+    return blinkDetected;
   };
 
   const calcEAR = (lm, idx) => {

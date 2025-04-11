@@ -44,7 +44,7 @@ function Checkin() {
             return data.gps_radius;
         } catch (error) {
             console.error('Error fetching GPS radius:', error);
-            return 0.3; // Default value in case of error
+            return 0.3;
         }
     };
 
@@ -60,7 +60,7 @@ function Checkin() {
             return location;
         } catch (error) {
             console.error('Error fetching GPS radius:', error);
-            return { latitude: 13.76825599595529, longitude: 100.49368727500557 }; // Default value in case of error
+            return { latitude: 13.76825599595529, longitude: 100.49368727500557 };
         }
     };
     
@@ -68,7 +68,7 @@ function Checkin() {
         const fetchJobs = async () => {
             setLoading(true);
             try {
-                const gpsRadius = await fetchGpsRadius(); // Fetch GPS radius from settings
+                const gpsRadius = await fetchGpsRadius();
                 const locationData = await fetchLocation();
     
                 const response = await fetch(`${API_URL}/get-assigned-jobs/${idemployees}`);
@@ -94,7 +94,7 @@ function Checkin() {
                     label: "เข้างานออฟฟิศ",
                     latitude: locationData.latitude,
                     longitude: locationData.longitude,
-                    radius: gpsRadius, // Use the radius fetched from settings
+                    radius: gpsRadius,
                     place_name: "สถาบันอาหาร",
                     start_time: "08:30",
                     end_time: "17:30"
@@ -239,7 +239,6 @@ function Checkin() {
 
             let uploadedFilePath = null;
 
-            // อัปโหลดไฟล์ภาพ
             if (selectedFile) {
                 const formData = new FormData();
                 formData.append('file', selectedFile);
