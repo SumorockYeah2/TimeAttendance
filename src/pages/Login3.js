@@ -154,7 +154,7 @@ const Login3 = () => {
 
     let closedFrames = 0;
     for (let i = earHistory.length - 1; i >=0; i--) {
-      if (earHistory[i] < 0.3) {
+      if (earHistory[i] < 0.25) {
         closedFrames++;
       } else {
         break;
