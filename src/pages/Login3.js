@@ -162,6 +162,12 @@ const Login3 = () => {
     return (v1 + v2) / (2.0 * h);
   };
 
+  const RATIO_LIMITS = {
+    eyeToNose: [1.0, 2.4],
+    noseToFaceH: [0.1, 0.3],
+    eyeWidthToFaceH: [0.25, 0.6],
+  };
+
   const checkDepthLiveness = (lm, depthHistoryRef) => {
     const leftEye = lm[130], rightEye = lm[359], nose = lm[1], forehead = lm[168], chin = lm[152];
     const eyeWidth = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y);
@@ -170,7 +176,7 @@ const Login3 = () => {
     const depth = (eyeWidth / noseY) + (noseY / faceH) * 10;
 
     depthHistoryRef.current.push(depth);
-    if (depthHistoryRef.current.length > 30) depthHistoryRef.current.shift();
+    if (depthHistoryRef.current.length > 40) depthHistoryRef.current.shift();
 
     const avg = depthHistoryRef.current.reduce((a, b) => a + b, 0) / depthHistoryRef.current.length;
     // console.log(avg);
@@ -183,12 +189,21 @@ const Login3 = () => {
     const min = Math.min(...depthHistoryRef.current);
     const variance = max - min;
 
-    const passed = avg >= 2.8 && variance > 0.02;
+    const eyeToNoseRatio = eyeWidth / noseY;
+    const noseToFaceHRatio = noseY / faceH;
+    const eyeToFaceHRatio = eyeWidth / faceH;
+  
+    const ratiosOk =
+      eyeToNoseRatio >= RATIO_LIMITS.eyeToNose[0] && eyeToNoseRatio <= RATIO_LIMITS.eyeToNose[1] &&
+      noseToFaceHRatio >= RATIO_LIMITS.noseToFaceH[0] && noseToFaceHRatio <= RATIO_LIMITS.noseToFaceH[1] &&
+      eyeToFaceHRatio >= RATIO_LIMITS.eyeWidthToFaceH[0] && eyeToFaceHRatio <= RATIO_LIMITS.eyeWidthToFaceH[1];
+
+    const passed = avg >= 3.0 && variance >= 0.03 && ratiosOk;
 
     // console.log(`DEPTH AVG: ${avg.toFixed(3)}, MOVED: ${moved ? '✅' : '❌'} → ${result ? 'ผ่าน' : 'ไม่ผ่าน'}`);
 
     console.log(
-      `DEPTH: ${depth.toFixed(3)} | AVG: ${avg.toFixed(3)} | Δ: ${variance.toFixed(4)} → ${passed ? "✅ ผ่าน" : "❌ ไม่ผ่าน"}`
+      `DEPTH: ${depth.toFixed(3)} | AVG: ${avg.toFixed(3)} | Δ: ${variance.toFixed(4)} | RatiosOK: ${ratiosOk ? "✅" : "❌"} → ${passed ? "✅ ผ่าน" : "❌ ไม่ผ่าน"}`
     );
   
     return passed;
