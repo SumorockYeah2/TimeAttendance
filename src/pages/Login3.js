@@ -206,7 +206,7 @@ const Login3 = () => {
     const maxZ = Math.max(...noseZHistory);
     const deltaZ = Math.abs(maxZ - minZ);
 
-    const moved = deltaZ > 0.002;
+    const moved = deltaZ > 0.004;
     console.log(`NOSE Z Δ: ${deltaZ.toFixed(6)} → ${moved ? "✅ ขยับ" : "❌ นิ่ง"}`);
 
     return moved;
@@ -230,7 +230,7 @@ const Login3 = () => {
     return {
       yaw,
       pitch,
-      isMoving: Math.abs(yaw) > 0.05 || Math.abs(pitch) > 0.05
+      isMoving: Math.abs(yaw) > 0.04 || Math.abs(pitch) > 0.04
     };
   };
 
