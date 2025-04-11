@@ -278,7 +278,7 @@ const Login3 = () => {
 
     const elapsedTime = Date.now() - cameraOpenedAtRef.current; // Calculate elapsed time
 
-    if (blinkDetected && depthVerified && zDepthMoved && headPose.isMoving && elapsedTime >= 2000) {
+    if (blinkDetected && depthVerified && zDepthMoved && headPose.isMoving && elapsedTime >= 3000) {
       setLivenessVerified(true);
       captureAndSendImage(); // แคปเจอร์ภาพและส่งไปยัง Backend
       handleCloseCamera();
