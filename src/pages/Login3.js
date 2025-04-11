@@ -162,6 +162,17 @@ const Login3 = () => {
     return (v1 + v2) / (2.0 * h);
   };
 
+  const minDelta = 0.03;
+
+  const hasDepthMovement = (history) => {
+    for (let i = 1; i < history.length; i++) {
+      if (Math.abs(history[i] - history[i - 1]) > minDelta) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   const checkDepthLiveness = (lm, depthHistoryRef) => {
     const leftEye = lm[130], rightEye = lm[359], nose = lm[1], forehead = lm[168], chin = lm[152];
     const eyeWidth = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y);
@@ -173,8 +184,14 @@ const Login3 = () => {
     if (depthHistoryRef.current.length > 30) depthHistoryRef.current.shift();
 
     const avg = depthHistoryRef.current.reduce((a, b) => a + b, 0) / depthHistoryRef.current.length;
-    console.log(avg);
-    return avg >= 3.0;
+    // console.log(avg);
+    // return avg >= 3.0;
+    const moved = hasDepthMovement(depthHistoryRef.current);
+    const result = avg >= 3.0 && moved;
+
+    console.log(`DEPTH AVG: ${avg.toFixed(3)}, MOVED: ${moved ? '✅' : '❌'} → ${result ? 'ผ่าน' : 'ไม่ผ่าน'}`);
+
+    return result;
   };
 
   const processLivenessDetection = (landmarks) => {
