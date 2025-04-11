@@ -264,7 +264,7 @@ const Login3 = () => {
     return {
       yaw,
       pitch,
-      isMoving: Math.abs(yaw) > 0.04 || Math.abs(pitch) > 0.04
+      isMoving: Math.abs(yaw) > 0.035 || Math.abs(pitch) > 0.035
     };
   };
 
