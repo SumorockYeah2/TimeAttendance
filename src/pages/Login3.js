@@ -217,7 +217,7 @@ const Login3 = () => {
       noseToFaceHRatio >= RATIO_LIMITS.noseToFaceH[0] && noseToFaceHRatio <= RATIO_LIMITS.noseToFaceH[1] &&
       eyeToFaceHRatio >= RATIO_LIMITS.eyeWidthToFaceH[0] && eyeToFaceHRatio <= RATIO_LIMITS.eyeWidthToFaceH[1];
 
-    const passed = avg >= 2.6 && variance >= 0.05 && ratiosOk;
+    const passed = avg >= 2.0 && variance >= 0.05 && ratiosOk;
 
     // console.log(`DEPTH AVG: ${avg.toFixed(3)}, MOVED: ${moved ? '✅' : '❌'} → ${result ? 'ผ่าน' : 'ไม่ผ่าน'}`);
 
