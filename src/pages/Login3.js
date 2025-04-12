@@ -250,53 +250,53 @@ const Login3 = () => {
     return passed;
   };
 
-  const noseZHistory = [];
+  // const noseZHistory = [];
 
-  const checkZDepthMovement = (lm) => {
-    const noseZ = lm[1].z;
+  // const checkZDepthMovement = (lm) => {
+  //   const noseZ = lm[1].z;
 
-    noseZHistory.push(noseZ);
-    if (noseZHistory.length > 30) noseZHistory.shift();
+  //   noseZHistory.push(noseZ);
+  //   if (noseZHistory.length > 30) noseZHistory.shift();
 
-    const minZ = Math.min(...noseZHistory);
-    const maxZ = Math.max(...noseZHistory);
-    const deltaZ = Math.abs(maxZ - minZ);
+  //   const minZ = Math.min(...noseZHistory);
+  //   const maxZ = Math.max(...noseZHistory);
+  //   const deltaZ = Math.abs(maxZ - minZ);
 
-    const moved = deltaZ > 0.005;
-    console.log(`NOSE Z Δ: ${deltaZ.toFixed(6)} → ${moved ? "✅ ขยับ" : "❌ นิ่ง"}`);
+  //   const moved = deltaZ > 0.005;
+  //   console.log(`NOSE Z Δ: ${deltaZ.toFixed(6)} → ${moved ? "✅ ขยับ" : "❌ นิ่ง"}`);
 
-    return moved;
-  };
+  //   return moved;
+  // };
 
-  const getHeadPose = (lm) => {
-    const nose = lm[1];
-    const leftEye = lm[33];
-    const rightEye = lm[263];
-    const chin = lm[152];
-    const forehead = lm[10];
+  // const getHeadPose = (lm) => {
+  //   const nose = lm[1];
+  //   const leftEye = lm[33];
+  //   const rightEye = lm[263];
+  //   const chin = lm[152];
+  //   const forehead = lm[10];
   
-    const dx = rightEye.x - leftEye.x;
-    const dy = chin.y - forehead.y;
+  //   const dx = rightEye.x - leftEye.x;
+  //   const dy = chin.y - forehead.y;
   
-    const yaw = Math.atan2(dx, Math.abs(rightEye.z - leftEye.z));
-    const pitch = Math.atan2(dy, Math.abs(chin.z - forehead.z));
+  //   const yaw = Math.atan2(dx, Math.abs(rightEye.z - leftEye.z));
+  //   const pitch = Math.atan2(dy, Math.abs(chin.z - forehead.z));
   
-    console.log(`Yaw: ${yaw.toFixed(3)}, Pitch: ${pitch.toFixed(3)}`);
+  //   console.log(`Yaw: ${yaw.toFixed(3)}, Pitch: ${pitch.toFixed(3)}`);
   
-    return {
-      yaw,
-      pitch,
-      isMoving: Math.abs(yaw) > 0.04 || Math.abs(pitch) > 0.04
-    };
-  };
+  //   return {
+  //     yaw,
+  //     pitch,
+  //     isMoving: Math.abs(yaw) > 0.04 || Math.abs(pitch) > 0.04
+  //   };
+  // };
 
   const processLivenessDetection = (landmarks) => {
     const blinkDetected = detectBlink(landmarks);
     const depthVerified = checkDepthLiveness(landmarks, depthHistoryRef);
-    const zDepthMoved = checkZDepthMovement(landmarks);
-    const headPose = getHeadPose(landmarks);
+    // const zDepthMoved = checkZDepthMovement(landmarks);
+    // const headPose = getHeadPose(landmarks);
 
-    console.log('Blink Detected:', blinkDetected, 'Depth Verified:', depthVerified, 'Z-Move:', zDepthMoved, 'Head Move:', headPose.isMoving);
+    // console.log('Blink Detected:', blinkDetected, 'Depth Verified:', depthVerified, 'Z-Move:', zDepthMoved, 'Head Move:', headPose.isMoving);
 
     const elapsedTime = Date.now() - cameraOpenedAtRef.current; // Calculate elapsed time
 
