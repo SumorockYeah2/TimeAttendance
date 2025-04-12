@@ -16,21 +16,18 @@ const Login3 = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [userName, setUserName] = useState('');
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
   const depthHistoryRef = useRef([]);
   const faceMeshRef = useRef(null);
   const navigate = useNavigate();
-  // const [cameraOpenedAt, setCameraOpenedAt] = useState(null);
   const cameraOpenedAtRef = useRef(null);
   const cameraTimeoutRef = useRef(null);
 
   useEffect(() => {
-    // ดึงข้อมูลผู้ใช้จาก localStorage
     const user = JSON.parse(localStorage.getItem('user'));
     if (user && user.name) {
-      setUserName(user.name); // ตั้งค่าชื่อผู้ใช้
+      setUserName(user.name);
     } else if (user && user.username) {
-      setUserName(user.username); // ใช้ username หากไม่มี name
+      setUserName(user.username);
     }
   }, []);
   
@@ -53,25 +50,19 @@ const Login3 = () => {
     setIsEmailLogin(false);
     setLivenessVerified(false);
 
-    // const cameraOpenedAt = Date.now();
     cameraOpenedAtRef.current = Date.now();
 
-    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (videoRef.current) {
             videoRef.current.srcObject = stream;
 
-            // รอให้ srcObject ถูกตั้งค่าเรียบร้อยก่อนเรียก play()
             videoRef.current.onloadedmetadata = () => {
                 videoRef.current.play().catch((error) => {
                     console.error('Error playing video:', error);
                 });
             };
 
-    
-        // สร้าง FaceMesh instance
             faceMeshRef.current = new FaceMesh({
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
             });
@@ -89,8 +80,8 @@ const Login3 = () => {
                     if (!detectionTimeout) {
                         detectionTimeout = setTimeout(() => {
                             processLivenessDetection(results.multiFaceLandmarks[0]);
-                            detectionTimeout = null; // รีเซ็ตตัวแปรหลังจากดีเลย์
-                        }, 2000); // ตั้งดีเลย์ 1 วินาที
+                            detectionTimeout = null;
+                        }, 2000);
                     }
                 }
             });
@@ -132,7 +123,7 @@ const Login3 = () => {
       videoRef.current.srcObject = null;
     }
     if (faceMeshRef.current) {
-      faceMeshRef.current.close(); // ปิด FaceMesh instance
+      faceMeshRef.current.close();
     }
   };
 
@@ -169,16 +160,12 @@ const Login3 = () => {
 
     const blinkDetected = hasClosed && hasOpened && closedFrames >= closedFramesRequired && openFrames >= openFramesRequired;
 
-    let blinkStartTime = null;
-
     console.log(`EAR History: ${earHistory.map((ear) => ear.toFixed(3)).join(', ')}`);
     console.log(`Closed Frames: ${closedFrames}, Open Frames: ${openFrames}, Blink Detected: ${blinkDetected ? "✅" : "❌"}`);
-    // const status = (leftEAR < 0.25 || rightEAR < 0.25) ? "ผ่าน" : "ไม่ผ่าน";
-    // console.log(leftEAR, rightEAR);
+
     const status = blinkDetected ? "ผ่าน" : "ไม่ผ่าน";
     console.log(`LEFT EAR: ${leftEAR.toFixed(3)}, RIGHT EAR: ${rightEAR.toFixed(3)} → ${status}`);
     console.log(`EAR Avg: ${avgEAR.toFixed(3)}, Closed: ${closedFrames}, Blink: ${blinkDetected ? "✅" : "❌"}`);
-    // return leftEAR < 0.25 || rightEAR < 0.25;
 
     return blinkDetected;
   };
@@ -191,146 +178,38 @@ const Login3 = () => {
     return (v1 + v2) / (2.0 * h);
   };
 
-  const RATIO_LIMITS = {
-    eyeToNose: [0.7, 2.8],
-    noseToFaceH: [0.07, 0.4],
-    eyeWidthToFaceH: [0.15, 0.65],
-  };
-
-  const checkDepthLiveness = (lm, depthHistoryRef) => {
-    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-
-    const leftEye = lm[130], rightEye = lm[359], nose = lm[1], forehead = lm[168], chin = lm[152];
-    const eyeWidth = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y);
-    const noseY = Math.abs(nose.y - ((leftEye.y + rightEye.y) / 2));
-    const faceH = Math.abs(forehead.y - chin.y);
-    const depth = (eyeWidth / noseY) + (noseY / faceH) * 10 + Math.abs(leftEye.z - rightEye.z);
-
-    depthHistoryRef.current.push(depth);
-    if (depthHistoryRef.current.length > 40) depthHistoryRef.current.shift();
-
-    const avg = depthHistoryRef.current.reduce((a, b) => a + b, 0) / depthHistoryRef.current.length;
-
-    const max = Math.max(...depthHistoryRef.current);
-    const min = Math.min(...depthHistoryRef.current);
-    const variance = max - min;
-
-    const temporalVariance = depthHistoryRef.current.reduce((sum, value, index, array) => {
-      if (index === 0) return sum;
-      return sum + Math.abs(value - array[index - 1]);
-    }, 0);  
-
-    const eyeToNoseRatio = eyeWidth / noseY;
-    const noseToFaceHRatio = noseY / faceH;
-    const eyeToFaceHRatio = eyeWidth / faceH;
-  
-    const temporalThreshold = isMobile ? 0.015 : 0.01;
-    const temporalOk = temporalVariance > temporalThreshold;
-
-    const ratiosOk =
-      eyeToNoseRatio >= RATIO_LIMITS.eyeToNose[0] && eyeToNoseRatio <= RATIO_LIMITS.eyeToNose[1] &&
-      noseToFaceHRatio >= RATIO_LIMITS.noseToFaceH[0] && noseToFaceHRatio <= RATIO_LIMITS.noseToFaceH[1] &&
-      eyeToFaceHRatio >= RATIO_LIMITS.eyeWidthToFaceH[0] && eyeToFaceHRatio <= RATIO_LIMITS.eyeWidthToFaceH[1];
-    
-    const zDepthDifference = Math.abs(forehead.z - chin.z);
-    const zDepthThreshold = isMobile ? 0.01 : 0.02;
-    const zDepthOk = zDepthDifference > zDepthThreshold;    
-
-    // const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    const avgThreshold = isMobile ? 1.8 : 2.2;
-    const varThreshold = isMobile ? 0.03 : 0.05;
-    const passed = avg >= avgThreshold && variance >= varThreshold && temporalOk && ratiosOk && zDepthOk;
-
-    // console.log(`DEPTH AVG: ${avg.toFixed(3)}, MOVED: ${moved ? '✅' : '❌'} → ${result ? 'ผ่าน' : 'ไม่ผ่าน'}`);
-
-    console.log(
-      `DEPTH: ${depth.toFixed(3)} | AVG: ${avg.toFixed(3)} | Δ: ${variance.toFixed(4)} | RatiosOK: ${ratiosOk ? "✅" : "❌"} → ${passed ? "✅ ผ่าน" : "❌ ไม่ผ่าน"}`
-    );
-  
-    return passed;
-  };
-
-  // const noseZHistory = [];
-
-  // const checkZDepthMovement = (lm) => {
-  //   const noseZ = lm[1].z;
-
-  //   noseZHistory.push(noseZ);
-  //   if (noseZHistory.length > 30) noseZHistory.shift();
-
-  //   const minZ = Math.min(...noseZHistory);
-  //   const maxZ = Math.max(...noseZHistory);
-  //   const deltaZ = Math.abs(maxZ - minZ);
-
-  //   const moved = deltaZ > 0.005;
-  //   console.log(`NOSE Z Δ: ${deltaZ.toFixed(6)} → ${moved ? "✅ ขยับ" : "❌ นิ่ง"}`);
-
-  //   return moved;
-  // };
-
-  // const getHeadPose = (lm) => {
-  //   const nose = lm[1];
-  //   const leftEye = lm[33];
-  //   const rightEye = lm[263];
-  //   const chin = lm[152];
-  //   const forehead = lm[10];
-  
-  //   const dx = rightEye.x - leftEye.x;
-  //   const dy = chin.y - forehead.y;
-  
-  //   const yaw = Math.atan2(dx, Math.abs(rightEye.z - leftEye.z));
-  //   const pitch = Math.atan2(dy, Math.abs(chin.z - forehead.z));
-  
-  //   console.log(`Yaw: ${yaw.toFixed(3)}, Pitch: ${pitch.toFixed(3)}`);
-  
-  //   return {
-  //     yaw,
-  //     pitch,
-  //     isMoving: Math.abs(yaw) > 0.04 || Math.abs(pitch) > 0.04
-  //   };
-  // };
-
   const processLivenessDetection = (landmarks) => {
     const blinkDetected = detectBlink(landmarks);
-    const depthVerified = checkDepthLiveness(landmarks, depthHistoryRef);
-    // const zDepthMoved = checkZDepthMovement(landmarks);
-    // const headPose = getHeadPose(landmarks);
 
-    // console.log('Blink Detected:', blinkDetected, 'Depth Verified:', depthVerified, 'Z-Move:', zDepthMoved, 'Head Move:', headPose.isMoving);
-
-    const elapsedTime = Date.now() - cameraOpenedAtRef.current; // Calculate elapsed time
+    const elapsedTime = Date.now() - cameraOpenedAtRef.current;
 
     if (blinkDetected && elapsedTime >= 2000) {
       setLivenessVerified(true);
-      captureAndSendImage(); // แคปเจอร์ภาพและส่งไปยัง Backend
+      captureAndSendImage();
       handleCloseCamera();
-    } else if (blinkDetected && depthVerified) {
+    } else if (blinkDetected) {
       console.log('Liveness verified, but waiting for 2 seconds to pass.');
     }
   };
 
 const captureAndSendImage = async () => {
     if (!videoRef.current) return;
-  
-    // สร้าง canvas เพื่อแคปเจอร์ภาพจากกล้อง
+
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-  
-    // แปลงภาพเป็น Blob
+
     const imageBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg'));
 
-    // สร้าง FormData เพื่อส่งภาพ
     const formData = new FormData();
     formData.append('image', imageBlob, 'face.jpg');
   
     try {
-        // ส่งภาพไปยัง Backend
         const response = await fetch(`${API_URL}/auth/facial-recognition`, {
             method: 'POST',
-            body: formData, // ส่ง FormData
+            body: formData,
         });
 
         if (response.ok) {
@@ -349,11 +228,11 @@ const captureAndSendImage = async () => {
                 window.dispatchEvent(new Event('storage'));
                 navigate('/checkin');
             } else {
-                alert(result.message || 'Face not recognized. Please try again.');
+                alert(result.message || 'ตรวจสอบใบหน้าไม่สำเร็จ กรุณาลองอีกครั้ง');
             }
         } else {
             console.error('Login failed:', response.statusText);
-            alert('Login failed. Please try again.');
+            alert('ไม่สามารถเข้าสู่ระบบได้ กรุณาลองอีกครั้ง');
         }
     } catch (error) {
         console.error('Error sending image to backend:', error);
@@ -411,7 +290,6 @@ const captureAndSendImage = async () => {
 
   return (
     <div className="container">
-      {/* Left Panel (สีเขียว) */}
       <div className={`panel left ${isEmailLogin ? 'collapsed' : 'expanded'}`}>
         <div className="camera-box">
             {!isCameraOpen ? (
@@ -432,7 +310,6 @@ const captureAndSendImage = async () => {
             </button>
         )}
 
-      {/* Right Panel (สีขาว) */}
       <div className={`panel right ${isEmailLogin ? 'expanded' : 'collapsed'}`}>
         {isEmailLogin ? (
           <div className="login-form">
@@ -472,12 +349,9 @@ const captureAndSendImage = async () => {
         ) : null}
       </div>
 
-      {/* Email Button */}
-      {/* {!isEmailLogin && ( */}
         <button className="email-link" onClick={handleEmailClick}>
           Email
         </button>
-      {/* )} */}
     </div>
   );
 };
