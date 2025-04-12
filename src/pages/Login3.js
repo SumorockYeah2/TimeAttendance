@@ -152,9 +152,9 @@ const Login3 = () => {
     const avgEAR = (leftEAR + rightEAR) / 2;
 
     const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    const closedThreshold = isMobile ? 0.05 : 0.1;
-    const openThreshold = isMobile ? 0.1 : 0.2;
-    const closedFramesRequired = isMobile ? 2 : 3;
+    const closedThreshold = isMobile ? 0.07 : 0.12;
+    const openThreshold = isMobile ? 0.12 : 0.28;
+    const closedFramesRequired = 2;
 
     earHistory.push(avgEAR);
     if (earHistory.length > (isMobile ? 40 : 15)) earHistory.shift();
