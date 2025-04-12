@@ -153,7 +153,7 @@ const Login3 = () => {
 
     const isMobile = /Android|iPhone/i.test(navigator.userAgent);
     const closedThreshold = isMobile ? 0.07 : 0.12;
-    const openThreshold = isMobile ? 0.12 : 0.28;
+    const openThreshold = isMobile ? 0.12 : 0.18;
     const closedFramesRequired = isMobile ? 1 :  2;
 
     earHistory.push(avgEAR);
@@ -296,7 +296,7 @@ const Login3 = () => {
 
     const elapsedTime = Date.now() - cameraOpenedAtRef.current; // Calculate elapsed time
 
-    if (blinkDetected && depthVerified && zDepthMoved && headPose.isMoving && elapsedTime >= 3000) {
+    if (blinkDetected && depthVerified && elapsedTime >= 3000) {
       setLivenessVerified(true);
       captureAndSendImage(); // แคปเจอร์ภาพและส่งไปยัง Backend
       handleCloseCamera();
