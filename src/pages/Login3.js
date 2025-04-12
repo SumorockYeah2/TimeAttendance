@@ -56,6 +56,8 @@ const Login3 = () => {
     // const cameraOpenedAt = Date.now();
     cameraOpenedAtRef.current = Date.now();
 
+    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+    
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (videoRef.current) {
@@ -192,6 +194,8 @@ const Login3 = () => {
   };
 
   const checkDepthLiveness = (lm, depthHistoryRef) => {
+    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+
     const leftEye = lm[130], rightEye = lm[359], nose = lm[1], forehead = lm[168], chin = lm[152];
     const eyeWidth = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y);
     const noseY = Math.abs(nose.y - ((leftEye.y + rightEye.y) / 2));
@@ -216,7 +220,7 @@ const Login3 = () => {
     const noseToFaceHRatio = noseY / faceH;
     const eyeToFaceHRatio = eyeWidth / faceH;
   
-    const temporalThreshold = 0.01;
+    const temporalThreshold = isMobile ? 0.02 : 0.01;
     const temporalOk = temporalVariance > temporalThreshold;
 
     const ratiosOk =
@@ -225,7 +229,7 @@ const Login3 = () => {
       eyeToFaceHRatio >= RATIO_LIMITS.eyeWidthToFaceH[0] && eyeToFaceHRatio <= RATIO_LIMITS.eyeWidthToFaceH[1];
     
     const zDepthDifference = Math.abs(forehead.z - chin.z);
-    const zDepthThreshold = 0.02;
+    const zDepthThreshold = isMobile ? 0.015 : 0.02;
     const zDepthOk = zDepthDifference > zDepthThreshold;    
 
     // const isMobile = /Android|iPhone/i.test(navigator.userAgent);
