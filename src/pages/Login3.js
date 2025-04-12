@@ -220,7 +220,7 @@ const Login3 = () => {
     const noseToFaceHRatio = noseY / faceH;
     const eyeToFaceHRatio = eyeWidth / faceH;
   
-    const temporalThreshold = isMobile ? 0.02 : 0.01;
+    const temporalThreshold = isMobile ? 0.015 : 0.01;
     const temporalOk = temporalVariance > temporalThreshold;
 
     const ratiosOk =
@@ -229,12 +229,12 @@ const Login3 = () => {
       eyeToFaceHRatio >= RATIO_LIMITS.eyeWidthToFaceH[0] && eyeToFaceHRatio <= RATIO_LIMITS.eyeWidthToFaceH[1];
     
     const zDepthDifference = Math.abs(forehead.z - chin.z);
-    const zDepthThreshold = isMobile ? 0.015 : 0.02;
+    const zDepthThreshold = isMobile ? 0.01 : 0.02;
     const zDepthOk = zDepthDifference > zDepthThreshold;    
 
     // const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    const avgThreshold = 2.2;
-    const varThreshold = 0.05;
+    const avgThreshold = isMobile ? 1.8 : 2.2;
+    const varThreshold = isMobile ? 0.03 : 0.05;
     const passed = avg >= avgThreshold && variance >= varThreshold && temporalOk && ratiosOk && zDepthOk;
 
     // console.log(`DEPTH AVG: ${avg.toFixed(3)}, MOVED: ${moved ? '✅' : '❌'} → ${result ? 'ผ่าน' : 'ไม่ผ่าน'}`);
