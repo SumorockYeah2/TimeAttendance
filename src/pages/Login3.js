@@ -164,7 +164,10 @@ const Login3 = () => {
 
     const openFrames = earHistory.filter((ear) => ear > openThreshold).length;
 
-    const blinkDetected = closedFrames >= closedFramesRequired && openFrames >= openFramesRequired;
+    const hasClosed = earHistory.some((ear) => ear < closedThreshold);
+    const hasOpened = earHistory.some((ear) => ear > openThreshold);
+
+    const blinkDetected = hasClosed && hasOpened && closedFrames >= closedFramesRequired && openFrames >= openFramesRequired;
 
     let blinkStartTime = null;
 
