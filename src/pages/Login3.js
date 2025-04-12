@@ -149,19 +149,21 @@ const Login3 = () => {
     const rightEAR = calcEAR(lm, [362, 385, 387, 263, 373, 380]);
     const avgEAR = (leftEAR + rightEAR) / 2;
 
-    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    const closedThreshold = isMobile ? 0.12 : 0.2;
-    const openThreshold = isMobile ? 0.2 : 0.3;
-    const closedFramesRequired = isMobile ? 2 : 3;
+    // const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+    const closedThreshold = 0.1;
+    const openThreshold = 0.2;
+    const closedFramesRequired = 3;
 
     earHistory.push(avgEAR);
-    if (earHistory.length > (isMobile ? 20 : 15)) earHistory.shift();
+    if (earHistory.length > 15) earHistory.shift();
 
     const closedFrames = earHistory.filter((ear) => ear < closedThreshold).length;
 
     const hasOpenBefore = earHistory.some((ear) => ear > openThreshold);
 
     const blinkDetected = closedFrames >= closedFramesRequired && hasOpenBefore;
+
+    let blinkStartTime = null;
 
     console.log(`EAR History: ${earHistory.map((ear) => ear.toFixed(3)).join(', ')}`);
     console.log(`Closed Frames: ${closedFrames}, Blink Detected: ${blinkDetected ? "✅" : "❌"}`);
