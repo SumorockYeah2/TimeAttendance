@@ -221,8 +221,8 @@ const Login3 = () => {
       eyeToFaceHRatio >= RATIO_LIMITS.eyeWidthToFaceH[0] && eyeToFaceHRatio <= RATIO_LIMITS.eyeWidthToFaceH[1];
 
     const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    const avgThreshold = isMobile ? 1.8 : 2.0;
-    const varThreshold = isMobile ? 0.01 : 0.015;
+    const avgThreshold = isMobile ? 1.5 : 2.8;
+    const varThreshold = isMobile ? 0.005 : 0.01;
     const passed = avg >= avgThreshold && variance >= varThreshold && ratiosOk;
 
     // console.log(`DEPTH AVG: ${avg.toFixed(3)}, MOVED: ${moved ? '✅' : '❌'} → ${result ? 'ผ่าน' : 'ไม่ผ่าน'}`);
