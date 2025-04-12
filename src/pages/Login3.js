@@ -236,7 +236,7 @@ const captureAndSendImage = async () => {
         }
     } catch (error) {
         console.error('Error sending image to backend:', error);
-        alert('Error sending image to backend.');
+        alert('มีข้อผิดพลาดขณะส่งไฟล์รูปไปยัง backend');
     }
 };
 
