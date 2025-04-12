@@ -149,28 +149,24 @@ const Login3 = () => {
     const rightEAR = calcEAR(lm, [362, 385, 387, 263, 373, 380]);
     const avgEAR = (leftEAR + rightEAR) / 2;
 
-    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    const threshold = isMobile ? 0.27 : 0.3;
+    // const isMobile = /Android|iPhone/i.test(navigator.userAgent);
 
     earHistory.push(avgEAR);
-    if (earHistory.length > 10) earHistory.shift();
+    if (earHistory.length > 15) earHistory.shift();
 
-    let closedFrames = 0;
-    for (let i = earHistory.length - 1; i >=0; i--) {
-      if (earHistory[i] < threshold) {
-        closedFrames++;
-      } else {
-        break;
-      }
-    }
+    const closedFrames = earHistory.filter((ear) => ear < 0.2).length;
 
-    const blinkDetected = closedFrames >= 2;
+    const hasOpenBefore = earHistory.some((ear) => ear > 0.3);
 
+    const blinkDetected = closedFrames >= 3 && hasOpenBefore;
 
+    console.log(`EAR History: ${earHistory.map((ear) => ear.toFixed(3)).join(', ')}`);
+    console.log(`Closed Frames: ${closedFrames}, Blink Detected: ${blinkDetected ? "✅" : "❌"}`);
     // const status = (leftEAR < 0.25 || rightEAR < 0.25) ? "ผ่าน" : "ไม่ผ่าน";
     // console.log(leftEAR, rightEAR);
     const status = blinkDetected ? "ผ่าน" : "ไม่ผ่าน";
     console.log(`LEFT EAR: ${leftEAR.toFixed(3)}, RIGHT EAR: ${rightEAR.toFixed(3)} → ${status}`);
+    console.log(`EAR Avg: ${avgEAR.toFixed(3)}, Closed: ${closedFrames}, Blink: ${blinkDetected ? "✅" : "❌"}`);
     // return leftEAR < 0.25 || rightEAR < 0.25;
 
     return blinkDetected;
@@ -185,9 +181,9 @@ const Login3 = () => {
   };
 
   const RATIO_LIMITS = {
-    eyeToNose: [1.0, 2.4],
-    noseToFaceH: [0.1, 0.3],
-    eyeWidthToFaceH: [0.25, 0.6],
+    eyeToNose: [0.7, 2.8],
+    noseToFaceH: [0.07, 0.4],
+    eyeWidthToFaceH: [0.15, 0.65],
   };
 
   const checkDepthLiveness = (lm, depthHistoryRef) => {
@@ -195,35 +191,42 @@ const Login3 = () => {
     const eyeWidth = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y);
     const noseY = Math.abs(nose.y - ((leftEye.y + rightEye.y) / 2));
     const faceH = Math.abs(forehead.y - chin.y);
-    const depth = (eyeWidth / noseY) + (noseY / faceH) * 10;
+    const depth = (eyeWidth / noseY) + (noseY / faceH) * 10 + Math.abs(leftEye.z - rightEye.z);
 
     depthHistoryRef.current.push(depth);
     if (depthHistoryRef.current.length > 40) depthHistoryRef.current.shift();
 
     const avg = depthHistoryRef.current.reduce((a, b) => a + b, 0) / depthHistoryRef.current.length;
-    // console.log(avg);
-    // return avg >= 3.0;
-
-    // const moved = hasDepthMovement(depthHistoryRef.current);
-    // const result = avg >= 3.0 && moved;
 
     const max = Math.max(...depthHistoryRef.current);
     const min = Math.min(...depthHistoryRef.current);
     const variance = max - min;
 
+    const temporalVariance = depthHistoryRef.current.reduce((sum, value, index, array) => {
+      if (index === 0) return sum;
+      return sum + Math.abs(value - array[index - 1]);
+    }, 0);  
+
     const eyeToNoseRatio = eyeWidth / noseY;
     const noseToFaceHRatio = noseY / faceH;
     const eyeToFaceHRatio = eyeWidth / faceH;
   
+    const temporalThreshold = 0.01;
+    const temporalOk = temporalVariance > temporalThreshold;
+
     const ratiosOk =
       eyeToNoseRatio >= RATIO_LIMITS.eyeToNose[0] && eyeToNoseRatio <= RATIO_LIMITS.eyeToNose[1] &&
       noseToFaceHRatio >= RATIO_LIMITS.noseToFaceH[0] && noseToFaceHRatio <= RATIO_LIMITS.noseToFaceH[1] &&
       eyeToFaceHRatio >= RATIO_LIMITS.eyeWidthToFaceH[0] && eyeToFaceHRatio <= RATIO_LIMITS.eyeWidthToFaceH[1];
+    
+    const zDepthDifference = Math.abs(forehead.z - chin.z);
+    const zDepthThreshold = 0.02;
+    const zDepthOk = zDepthDifference > zDepthThreshold;    
 
-    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    const avgThreshold = isMobile ? 1.5 : 2.8;
-    const varThreshold = isMobile ? 0.005 : 0.01;
-    const passed = avg >= avgThreshold && variance >= varThreshold && ratiosOk;
+    // const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+    const avgThreshold = 2.2;
+    const varThreshold = 0.05;
+    const passed = avg >= avgThreshold && variance >= varThreshold && temporalOk && ratiosOk && zDepthOk;
 
     // console.log(`DEPTH AVG: ${avg.toFixed(3)}, MOVED: ${moved ? '✅' : '❌'} → ${result ? 'ผ่าน' : 'ไม่ผ่าน'}`);
 
@@ -246,7 +249,7 @@ const Login3 = () => {
     const maxZ = Math.max(...noseZHistory);
     const deltaZ = Math.abs(maxZ - minZ);
 
-    const moved = deltaZ > 0.0035;
+    const moved = deltaZ > 0.005;
     console.log(`NOSE Z Δ: ${deltaZ.toFixed(6)} → ${moved ? "✅ ขยับ" : "❌ นิ่ง"}`);
 
     return moved;
@@ -284,15 +287,14 @@ const Login3 = () => {
 
     const elapsedTime = Date.now() - cameraOpenedAtRef.current; // Calculate elapsed time
 
-    if (blinkDetected && depthVerified && zDepthMoved && headPose.isMoving && elapsedTime >= 2000) {
+    if (blinkDetected && depthVerified && zDepthMoved && headPose.isMoving && elapsedTime >= 3000) {
       setLivenessVerified(true);
       captureAndSendImage(); // แคปเจอร์ภาพและส่งไปยัง Backend
       handleCloseCamera();
     } else if (blinkDetected && depthVerified) {
-      console.log('Liveness verified, but waiting for 2 seconds to pass.');
+      console.log('Liveness verified, but waiting for 3 seconds to pass.');
     }
   };
-
 
 const captureAndSendImage = async () => {
     if (!videoRef.current) return;
