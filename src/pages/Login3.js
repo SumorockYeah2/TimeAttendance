@@ -162,14 +162,14 @@ const Login3 = () => {
 
     const closedFrames = earHistory.filter((ear) => ear < closedThreshold).length;
 
-    const openFrames = earHistory.some((ear) => ear > openThreshold).length;
+    const openFrames = earHistory.filter((ear) => ear > openThreshold).length;
 
     const blinkDetected = closedFrames >= closedFramesRequired && openFrames >= openFramesRequired;
 
     let blinkStartTime = null;
 
     console.log(`EAR History: ${earHistory.map((ear) => ear.toFixed(3)).join(', ')}`);
-    console.log(`Closed Frames: ${closedFrames}, Blink Detected: ${blinkDetected ? "✅" : "❌"}`);
+    console.log(`Closed Frames: ${closedFrames}, Open Frames: ${openFrames}, Blink Detected: ${blinkDetected ? "✅" : "❌"}`);
     // const status = (leftEAR < 0.25 || rightEAR < 0.25) ? "ผ่าน" : "ไม่ผ่าน";
     // console.log(leftEAR, rightEAR);
     const status = blinkDetected ? "ผ่าน" : "ไม่ผ่าน";
