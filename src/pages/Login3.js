@@ -296,12 +296,12 @@ const Login3 = () => {
 
     const elapsedTime = Date.now() - cameraOpenedAtRef.current; // Calculate elapsed time
 
-    if (blinkDetected && elapsedTime >= 2000) {
+    if (blinkDetected && depthVerified && elapsedTime >= 2000) {
       setLivenessVerified(true);
       captureAndSendImage(); // แคปเจอร์ภาพและส่งไปยัง Backend
       handleCloseCamera();
     } else if (blinkDetected && depthVerified) {
-      console.log('Liveness verified, but waiting for 3 seconds to pass.');
+      console.log('Liveness verified, but waiting for 2 seconds to pass.');
     }
   };
 
