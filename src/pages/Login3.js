@@ -155,7 +155,7 @@ const Login3 = () => {
     const closedFramesRequired = isMobile ? 2 : 3;
 
     earHistory.push(avgEAR);
-    if (earHistory.length > (isMobile ? 30 : 15)) earHistory.shift();
+    if (earHistory.length > (isMobile ? 40 : 15)) earHistory.shift();
 
     const closedFrames = earHistory.filter((ear) => ear < closedThreshold).length;
 
