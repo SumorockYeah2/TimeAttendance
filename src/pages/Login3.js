@@ -149,13 +149,13 @@ const Login3 = () => {
     const rightEAR = calcEAR(lm, [362, 385, 387, 263, 373, 380]);
     const avgEAR = (leftEAR + rightEAR) / 2;
 
-    // const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    const closedThreshold = 0.1;
-    const openThreshold = 0.2;
-    const closedFramesRequired = 3;
+    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+    const closedThreshold = isMobile ? 0.05 : 0.1;
+    const openThreshold = isMobile ? 0.1 : 0.2;
+    const closedFramesRequired = isMobile ? 2 : 3;
 
     earHistory.push(avgEAR);
-    if (earHistory.length > 15) earHistory.shift();
+    if (earHistory.length > (isMobile ? 30 : 15)) earHistory.shift();
 
     const closedFrames = earHistory.filter((ear) => ear < closedThreshold).length;
 
