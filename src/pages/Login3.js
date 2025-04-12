@@ -152,12 +152,12 @@ const Login3 = () => {
     const avgEAR = (leftEAR + rightEAR) / 2;
 
     const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    const closedThreshold = isMobile ? 0.07 : 0.12;
-    const openThreshold = isMobile ? 0.12 : 0.18;
-    const closedFramesRequired = isMobile ? 1 :  2;
+    const closedThreshold = isMobile ? 0.08 : 0.12;
+    const openThreshold = isMobile ? 0.1 : 0.15;
+    const closedFramesRequired = 1;
 
     earHistory.push(avgEAR);
-    if (earHistory.length > (isMobile ? 40 : 15)) earHistory.shift();
+    if (earHistory.length > 30) earHistory.shift();
 
     const closedFrames = earHistory.filter((ear) => ear < closedThreshold).length;
 
@@ -296,7 +296,7 @@ const Login3 = () => {
 
     const elapsedTime = Date.now() - cameraOpenedAtRef.current; // Calculate elapsed time
 
-    if (blinkDetected && depthVerified && elapsedTime >= 2000) {
+    if (blinkDetected && elapsedTime >= 2000) {
       setLivenessVerified(true);
       captureAndSendImage(); // แคปเจอร์ภาพและส่งไปยัง Backend
       handleCloseCamera();
