@@ -107,7 +107,7 @@ const Login3 = () => {
           camera.start();
 
           cameraTimeoutRef.current = setTimeout(() => {
-            alert('Camera timeout reached. Closing the camera.');
+            alert('กล้องทำงานครบ 15 วินาทีแล้ว ระบบได้ปิดกล้องชั่วคราวเพื่อป้องกันปัญหาเซิร์ฟเวอร์ทำงานหนักเกิน กรุณาเปิดกล้องแล้วลองสแกนหน้าใหม่อีกครั้ง');
             handleCloseCamera();
           }, 15000);
         }
