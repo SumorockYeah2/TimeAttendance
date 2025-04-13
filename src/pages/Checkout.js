@@ -148,7 +148,7 @@ function Checkout() {
             }
         } catch (error) {
             console.error('Error saving check-out data:', error);
-            alert("Failed to save check-out data. Please try again.");
+            alert("ไม่สามารถบันทึกข้อมูลการลงเวลาออกงานได้ กรุณาลองใหม่อีกครั้ง");
         }
     };
 
