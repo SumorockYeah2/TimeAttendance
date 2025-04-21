@@ -421,14 +421,7 @@ function EmpData() {
         }
 
         console.log('FormData being sent:', Object.fromEntries(formData.entries()));
-        console.log('Data sent to user-credentials-add:', {
-            idusers: newEmployee.idemployees,
-            email: newEmployee.email,
-            username: newEmployee.name,
-            idemployees: newEmployee.idemployees,
-            role: newEmployee.role,
-        });
-    
+
         try {
             const response = await fetch(`${API_URL}/empdata-add`, {
                 method: 'POST',

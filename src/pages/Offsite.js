@@ -129,8 +129,7 @@ function Leave() {
             console.log('Start DateTime:', startDateTime);
             console.log('End DateTime:', endDateTime);
             console.log('Leave Requests:', leaveRequests);
-
-            // ตรวจสอบว่าช่วงเวลาชนกับคำร้องลาที่อนุมัติแล้ว
+            
             const hasOverlap = leaveRequests.some((request) => {
                 return (
                     request.idemployees === idemployees &&
@@ -161,7 +160,7 @@ function Leave() {
         return `${year}-${month}-${day}`;
     };
 
-    const handleCheckIn = async () => {
+    const handleSave = async () => {
         if (!userLocation || !OffsitePlace || !startDate || !startTime || !endDate || !endTime || !description) {
             alert('โปรดกรอกข้อมูลให้ครบทั้งหมดทุกช่องก่อน');
             return;
@@ -177,7 +176,6 @@ function Leave() {
                 return;
             }
         } else {
-            // ตรวจสอบงานนอกสถานที่ (ไม่ต้องแจ้งเตือน)
             if (startDateTime >= endDateTime) {
                 alert('วันที่และเวลาเริ่มต้น อยู่หลังจากวันที่และเวลาสิ้นสุด โปรดระบุใหม่ให้ถูกต้อง');
                 return;
@@ -196,7 +194,6 @@ function Leave() {
             return;
         }
 
-        // ตรวจสอบการชนกับคำร้องลาที่อนุมัติแล้ว
         const hasLeaveOverlap = await checkLeaveOverlap();
         if (hasLeaveOverlap) {
             alert('ไม่สามารถส่งคำร้องได้ เนื่องจากชนกับช่วงเวลาที่ลางาน');
@@ -260,7 +257,6 @@ function Leave() {
                         alert("ส่งคำร้องสำเร็จ แต่ไม่สามารถเพิ่มงานได้");
                     }
                 } else {
-                    // สำหรับคำร้องย้อนหลัง
                     alert("ส่งคำร้องเรียบร้อย");
                     navigate('/checkin');
                 }
@@ -278,11 +274,6 @@ function Leave() {
     const handleCancel = () => {
         navigate('/checkin');
     }
-
-    const options = [
-        { value: 'one', label: 'one' },
-        { value: 'two', label: 'two' }
-    ]
 
     const [description, setDescription] = useState('');
     const [startDate, setStartDate] = useState(new Date());
@@ -314,7 +305,6 @@ function Leave() {
     useEffect(() => {
         getUserLocation();
     }, []);
-    /////
 
     const handleMarkerDrag = (event) => {
         const { lat, lng } = event.target.getLatLng();
@@ -441,7 +431,7 @@ function Leave() {
                 </label>
 
             <div style={{ paddingTop: '10px' }}>
-                <button className="btn btn-success" onClick={handleCheckIn} disabled={!isFormValid}>ส่งคำร้อง</button>
+                <button className="btn btn-success" onClick={handleSave} disabled={!isFormValid}>ส่งคำร้อง</button>
                 <button className="btn btn-danger" onClick={handleCancel}>ยกเลิก</button>
             </div>
         </div>

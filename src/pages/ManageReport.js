@@ -119,48 +119,6 @@ function ManageReport() {
         setIsModalOpen(true);
     }
 
-    // const handleSave = async () => {
-    //     const updatedData = [...workData];
-    //     const updatedEditedData = {
-    //         ...editedData,
-    //         idattendance: workData[editIndex].idattendance,
-    //         jobID: editedData.jobID,
-    //         jobType: editedData.jobType,
-    //         description: editedData.description,
-    //         in_time: editedData.in_time,
-    //         out_time: editedData.out_time,
-    //         location: editedData.location,
-    //         image_url: editedData.image_url,
-    //     };
-    //     updatedData[editIndex] = updatedEditedData;
-    //     setWorkData(updatedData);
-    //     // updatedData[editIndex] = editedData;
-    //     // setWorkData(updatedData);
-    //     // setEditIndex(null);
-    //     // setEditedData({});
-    //     try {
-    //         const response = await fetch(`${API_URL}/attendance-update`, {
-    //             method: 'PUT',
-    //             headers: {
-    //                 'Content-Type': 'application/json'
-    //             },
-    //             body: JSON.stringify(updatedEditedData)
-    //         });
-
-    //         if (response.ok) {
-    //             setEditIndex(null);
-    //             setEditedData({});
-    //         } else {
-    //             const errorText = await response.text();
-    //             console.error('Error:', errorText);
-    //             alert("บันทึกข้อมูลไม่สำเร็จ");
-    //         }
-    //     } catch (error) {
-    //         console.error('Error:', error);
-    //         alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-    //     }
-    // }
-
     const handleSave = async () => {
         if (!editedData.jobID || !editedData.jobType || !editedData.description) {
             alert('กรุณากรอกข้อมูลให้ครบถ้วนก่อน');
@@ -291,8 +249,6 @@ function ManageReport() {
                 console.error('Error:', error);
                 alert("เกิดข้อผิดพลาดในการเพิ่มข้อมูล");
             }
-            // setWorkData((prevData) => [...prevData, newEntry]);
-            // setNewEntry({});
         }
     };
 

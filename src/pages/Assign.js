@@ -143,7 +143,7 @@ function Assign({ role }) {
                 response = await fetch(`${API_URL}/update-special-hours`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...jobData, jobID: specialJobs[0].jobID }) // ใช้ jobID ของเวลาพิเศษที่มีอยู่
+                    body: JSON.stringify({ ...jobData, jobID: specialJobs[0].jobID })
                 });
             } else {
                 response = await fetch(`${API_URL}/add-special-hours`, {

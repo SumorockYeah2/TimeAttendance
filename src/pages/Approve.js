@@ -1,6 +1,17 @@
 import React, {useState, useEffect} from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
 function Approve({ role }) {
     const API_URL = process.env.REACT_APP_API_URL;
     const [leaveData, setLeaveData] = useState([]);
@@ -14,6 +25,8 @@ function Approve({ role }) {
     const idemployees = user?.idemployees;
     console.log('Logged-in User ID:', idemployees);
     console.log('Role:', role);
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchHolidays = async () => {
@@ -86,112 +99,10 @@ function Approve({ role }) {
         fetchSubordinatesAndLeaveData();
     }, [role, idemployees]);
 
-
-    const calculateWorkingHours = (start, end) => {
-        console.log('Start:', start);
-        console.log('End:', end);
-
-        let totalHours = 0;
-
-        while (start < end) {
-            const workStart = new Date(start);
-            workStart.setHours(8, 30, 0, 0);
-            const workEnd = new Date(start);
-            workEnd.setHours(17, 30, 0, 0);
-
-            const isWeekend = start.getDay() === 0 || start.getDay() === 6;
-            const isHoliday = holidays.some(
-                (holiday) => new Date(holiday.start.date).toDateString() === start.toDateString()
-            );
-
-            if (isWeekend || isHoliday) {
-                console.log('Skipping holiday or weekend:', start);
-                start.setDate(start.getDate() + 1);
-                start.setHours(8, 30, 0, 0);
-                continue;
-            }
-
-            if (start < workStart) {
-                console.log('Adjusting start time from', start, 'to', workStart);
-                start = workStart;
-            }
-
-            if (start >= workStart && start < workEnd) {
-                // คำนวณช่วงเช้า (08:30 - 12:00)
-                if (start.getHours() >= 8 && start.getHours() < 12) {
-                    const morningEnd = new Date(start);
-                    morningEnd.setHours(12, 0, 0, 0);
-                    const morningHours = Math.min((morningEnd - start) / (1000 * 60 * 60), (end - start) / (1000 * 60 * 60));
-                    totalHours += morningHours;
-                    console.log('Morning hours:', morningHours);
-                    start = morningEnd; // เลื่อนไปยังช่วงบ่าย
-                }
-    
-                if (start.getHours() === 12) {
-                    start.setHours(13, 0, 0, 0); // ข้ามช่วงพักเที่ยงไป 13:00
-                }
-
-                if (start.getHours() >= 13 && start < workEnd && start < end) {
-                    const afternoonEnd = new Date(start);
-                    afternoonEnd.setHours(17, 30, 0, 0);
-                    const afternoonHours = Math.min((afternoonEnd - start) / (1000 * 60 * 60), (end - start) / (1000 * 60 * 60));
-
-                    if (afternoonHours > 0) {
-                        totalHours += afternoonHours;
-                        console.log('Afternoon hours:', afternoonHours);
-                    } else {
-                        console.log('Skipping afternoon calculation as hours are negative or zero');
-                    }
-
-                    start = afternoonEnd; // เลื่อนไปยังวันถัดไป
-                }
-            }
-
-            // ข้ามไปวันถัดไป
-            start.setDate(start.getDate() + 1);
-            start.setHours(8, 30, 0, 0);
-        }
-
-        console.log('Calculated working hours:', totalHours);
-        return totalHours;
-    };
-
     const handleApprove = async (idrequests) => {
         const approvedRequest = leaveData.find(el => el.idrequests === idrequests);
         if (!approvedRequest) return;
     
-        // const startDateTime = new Date(`${approvedRequest.start_date}T${approvedRequest.start_time}`);
-        // const endDateTime = new Date(`${approvedRequest.end_date}T${approvedRequest.end_time}`);
-        
-        // const leaveHours = calculateWorkingHours(startDateTime, endDateTime, holidays);
-        // const leaveDays = leaveHours / 8;
-    
-        // let leaveTypeColumn;
-        // if (approvedRequest.leaveType === 'ลากิจ') {
-        //     leaveTypeColumn = 'absence_hrs';
-        // } else if (approvedRequest.leaveType === 'ลาป่วย') {
-        //     leaveTypeColumn = 'sick_hrs';
-        // } else if (approvedRequest.leaveType === 'ลาพักร้อน') {
-        //     leaveTypeColumn = 'vacation_hrs';
-        // }
-    
-        // if (leaveTypeColumn) {
-        //     const updateLeaveBalanceResponse = await fetch(`${API_URL}/leave-balance-update/${approvedRequest.idemployees}`, {
-        //         method: 'PUT',
-        //         headers: {
-        //             'Content-Type': 'application/json'
-        //         },
-        //         body: JSON.stringify({
-        //             [leaveTypeColumn]: -leaveHours
-        //         })
-        //     });
-    
-        //     if (!updateLeaveBalanceResponse.ok) {
-        //         alert('ไม่สามารถอัปเดตวันลาได้');
-        //         return;
-        //     }
-        // }
-
         fetch(`${API_URL}/request-update/${idrequests}`, {
             method: 'PUT',
             headers: {
@@ -255,7 +166,7 @@ function Approve({ role }) {
         .then(response => {
             if (response.ok) {
                 alert(`ปฏิเสธคำร้องสำเร็จ`);
-                setLeaveData(prevData => prevData.filter(el => el.idrequests !== idrequests)); // Remove the rejected request from the state
+                setLeaveData(prevData => prevData.filter(el => el.idrequests !== idrequests));
             } else {
                 return response.text().then(text => { throw new Error(text) });
             }
@@ -276,8 +187,30 @@ function Approve({ role }) {
     const handleEdit = (idrequests) => {
         const originalIndex = leaveData.findIndex(el => el.idrequests === idrequests); // Find the original index
         if (originalIndex !== -1) {
-            setEditIndex(originalIndex); // Set the original index for editing
-            setEditedData({ ...leaveData[originalIndex] }); // Set the data for editing
+            const requestData = { ...leaveData[originalIndex] };
+
+            // Parse location if it's a JSON string
+            if (typeof requestData.location === 'string') {
+                try {
+                    const parsedLocation = JSON.parse(requestData.location);
+                    if (parsedLocation.latitude && parsedLocation.longitude) {
+                        requestData.location = { lat: parsedLocation.latitude, lng: parsedLocation.longitude };
+                    } else {
+                        throw new Error('Invalid JSON location format');
+                    }
+                } catch (error) {
+                    // Fallback to default location if parsing fails
+                    console.error('Error parsing location:', error);
+                    requestData.location = { lat: 13.76825599595529, lng: 100.49368727500557 };
+                }
+            } else if (!requestData.location || typeof requestData.location !== 'object') {
+                // Fallback to default location if location is missing or invalid
+                requestData.location = { lat: 13.76825599595529, lng: 100.49368727500557 };
+            }
+
+            setEditIndex(originalIndex);
+            setEditedData(requestData);
+            setIsModalOpen(true);
         }
     };
 
@@ -293,7 +226,10 @@ function Approve({ role }) {
             leaveEndDate: editedData.end_date,
             leaveEndTime: editedData.end_time,
             leaveDescription: editedData.reason,
-            leaveLocation: editedData.location,
+            leaveLocation: JSON.stringify({
+                latitude: editedData.location.lat,
+                longitude: editedData.location.lng,
+            }),
             leaveStatus: editedData.status
         };
         updatedData[editIndex] = updatedEditedData;
@@ -311,6 +247,7 @@ function Approve({ role }) {
             if (response.ok) {
                 setEditIndex(null);
                 setEditedData({});
+                setIsModalOpen(false);
             } else {
                 console.error('Error:', await response.text());
                 alert("บันทึกข้อมูลไม่สำเร็จ");
@@ -319,9 +256,6 @@ function Approve({ role }) {
             console.error('Error:', error);
             alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
         }
-        // localStorage.setItem('leaveData', JSON.stringify(updatedData));
-        // setEditIndex(null);
-        // setEditedData({});
     }
 
     const handleChange = (key, value) => {
@@ -331,6 +265,7 @@ function Approve({ role }) {
     const handleCancel = () => {
         setEditIndex(null);
         setEditedData({});
+        setIsModalOpen(false);
     };
 
     if (role !== 'Supervisor' && role !== 'Admin' && role !== 'HR') {
@@ -372,7 +307,7 @@ function Approve({ role }) {
                                 .map((el, index) => (
                                     <tr key={el.idrequests}>
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.leaveType}
@@ -380,10 +315,11 @@ function Approve({ role }) {
                                                 />
                                             ) : (
                                                 el.leaveType
-                                            )}
+                                            )} */}
+                                            {el.leaveType}
                                         </td>
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.idemployees}
@@ -391,10 +327,11 @@ function Approve({ role }) {
                                                 />
                                             ) : (
                                                 el.idemployees
-                                            )}
+                                            )} */}
+                                            {el.idemployees}
                                         </td>
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.location}
@@ -402,21 +339,25 @@ function Approve({ role }) {
                                                 />
                                             ) : (
                                                 el.location
-                                            )}
+                                            )} */}
+                                            {el.location && typeof el.location === 'object'
+                                                ? JSON.stringify({ latitude: el.location.lat, longitude: el.location.lng })
+                                                : el.location || 'N/A'}
                                         </td>
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.place_name}
                                                     onChange={(e) => handleChange('place_name', e.target.value)}
                                                 />
                                             ) : (
-                                                el.place_name // ค่าจะเป็น "none"
-                                            )}
+                                                el.place_name
+                                            )} */}
+                                            {el.place_name}
                                         </td>
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.start_date}
@@ -424,10 +365,11 @@ function Approve({ role }) {
                                                 />
                                             ) : (
                                                 el.start_date
-                                            )}
+                                            )} */}
+                                            {el.start_date}
                                         </td>
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.start_time}
@@ -435,10 +377,11 @@ function Approve({ role }) {
                                                 />
                                             ) : (
                                                 el.start_time
-                                            )}
+                                            )} */}
+                                            {el.start_time}
                                         </td>
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.end_date}
@@ -446,10 +389,11 @@ function Approve({ role }) {
                                                 />
                                             ) : (
                                                 el.end_date
-                                            )}
+                                            )} */}
+                                            {el.end_date}
                                         </td>
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.end_time}
@@ -457,7 +401,8 @@ function Approve({ role }) {
                                                 />
                                             ) : (
                                                 el.end_time
-                                            )}
+                                            )} */}
+                                            {el.end_time}
                                         </td>
                                         {/* <td style={{ padding: "10px" }}>
                                             {editIndex === index ? (
@@ -471,7 +416,7 @@ function Approve({ role }) {
                                             )}
                                         </td> */}
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.reason}
@@ -479,10 +424,11 @@ function Approve({ role }) {
                                                 />
                                             ) : (
                                                 el.reason
-                                            )}
+                                            )} */}
+                                            {el.reason}
                                         </td>
                                         <td style={{ padding: "10px" }}>
-                                            {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
+                                            {/* {editIndex === leaveData.findIndex(item => item.idrequests === el.idrequests) ? (
                                                 <input
                                                     className="form-control"
                                                     value={editedData.status}
@@ -490,7 +436,8 @@ function Approve({ role }) {
                                                 />
                                             ) : (
                                                 el.status
-                                            )}
+                                            )} */}
+                                            {el.status}
                                         </td>
                                         <td style={{ padding: "10px" }}>
                                             {(role === 'Supervisor' || role === 'Admin') && (
@@ -516,6 +463,135 @@ function Approve({ role }) {
                             ))}
                         </tbody>
                     </table>
+                )}
+
+                {isModalOpen && (
+                    <div className="modal-overlay">
+                        <div className="modal-content">
+                            <h4>แก้ไขข้อมูลคำร้อง</h4>
+                            <div>
+                                <label>ประเภทคำร้อง:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.leaveType || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, leaveType: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>รหัสพนักงาน:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.idemployees || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, idemployees: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>พิกัดสถานที่ (ลากหมุดเพื่อเปลี่ยนตำแหน่ง):</label>
+                                {/* <input
+                                    className="form-control"
+                                    value={
+                                        editedData.location
+                                            ? `${editedData.location.lat},${editedData.location.lng}`
+                                            : ''
+                                    }
+                                    onChange={(e) => {
+                                        const [lat, lng] = e.target.value.split(',').map(Number);
+                                        setEditedData((prevData) => ({
+                                            ...prevData,
+                                            location: { lat, lng },
+                                        }));
+                                    }}
+                                /> */}
+                                <MapContainer
+                                    center={[
+                                        editedData.location?.lat || 13.76825599595529,
+                                        editedData.location?.lng || 100.49368727500557,
+                                    ]}
+                                    zoom={13}
+                                    style={{ height: '300px', width: '100%' }}
+                                >
+                                    <TileLayer
+                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    />
+                                    <Marker
+                                        position={[
+                                            editedData.location?.lat || 13.76825599595529,
+                                            editedData.location?.lng || 100.49368727500557,
+                                        ]}
+                                        draggable={true}
+                                        eventHandlers={{
+                                            dragend: (e) => {
+                                                const latlng = e.target.getLatLng();
+                                                setEditedData((prevData) => ({
+                                                    ...prevData,
+                                                    location: { lat: latlng.lat, lng: latlng.lng },
+                                                }));
+                                                console.log('Updated location: ', {lat: latlng.lat, lng: latlng.lng });
+                                            },
+                                        }}
+                                    >
+                                        <Popup>ลากหมุดเพื่อเลือกตำแหน่ง</Popup>
+                                    </Marker>
+                                </MapContainer>
+                            </div>
+                            <div>
+                                <label>ชื่อสถานที่:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.place_name || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, place_name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>วันที่เริ่มต้น:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.start_date || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, start_date: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>เวลาเริ่มต้น:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.start_time || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, start_time: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>วันที่สิ้นสุด:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.end_date || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, end_date: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>เวลาสิ้นสุด:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.end_time || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, end_time: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label>รายละเอียด:</label>
+                                <input
+                                    className="form-control"
+                                    value={editedData.reason || ''}
+                                    onChange={(e) => setEditedData({ ...editedData, reason: e.target.value })}
+                                />
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-success" onClick={handleSave}>
+                                    บันทึก
+                                </button>
+                                <button className="btn btn-danger" onClick={handleCancel}>
+                                    ปิด
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>
