@@ -741,12 +741,25 @@ function Dashboard({ role }) {
 
             {/* Dropdown สำหรับเลือกพนักงาน */}
             {(role === "HR" || role === "Supervisor" || role === "Admin") && (
-                <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '20px', flex: '1 1 100%', minWidth: '150px' }}>
                     <label htmlFor="employeeSelect">เลือกพนักงาน: </label>
                         <select
                             id="employeeSelect"
                             value={selectedEmployee}
                             onChange={handleEmployeeChange}
+                            style={{
+                                width: '330px',
+                                height: '40px',
+                                padding: '5px 10px',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                backgroundColor: '#fff',
+                                appearance: 'none', // ซ่อนลูกศรเริ่มต้นของเบราว์เซอร์
+                                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")",
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 10px center',
+                                backgroundSize: '16px'
+                            }}
                         >
                         {role !== "Supervisor" && (
                             <option value="">พนักงานทั้งหมด</option>
@@ -763,71 +776,106 @@ function Dashboard({ role }) {
                     </select>
                 </div>
             )}
-            <div style={{ marginBottom: '20px' }}>
-                <label htmlFor="timeRange">เลือกช่วงเวลา: </label>
-                <select id="timeRange" value={timeRange} onChange={handleTimeRangeChange}>
-                    <option value="monthly">รายเดือน</option>
-                    <option value="quarterly">รายไตรมาส</option>
-                    <option value="yearly">รายปี</option>
-                </select>
-            </div>
-            {timeRange === 'monthly' && (
-                <div style={{ marginBottom: '20px' }}>
-                    <label htmlFor="month">เลือกเดือน: </label>
-                    <select id="month" value={selectedMonth} onChange={handleMonthChange}>
-                        {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i + 1} value={i + 1}>
-                                {new Date(0, i).toLocaleString('default', { month: 'long' })}
-                            </option>
-                        ))}
+            <div className="dropdown-container">
+                <div className="dropdown-item">
+                    <label htmlFor="timeRange">เลือกช่วงเวลา: </label>
+                    <select
+                        id="timeRange"
+                        value={timeRange}
+                        onChange={handleTimeRangeChange}
+                        style={{
+                            width: '150px',
+                            height: '40px',
+                            padding: '5px 10px',
+                            border: '1px solid #ccc',
+                            borderRadius: '4px',
+                            backgroundColor: '#fff',
+                            appearance: 'none', // ซ่อนลูกศรเริ่มต้นของเบราว์เซอร์
+                            backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")",
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 10px center',
+                            backgroundSize: '16px'
+                        }}
+                    >
+                        <option value="monthly">รายเดือน</option>
+                        <option value="quarterly">รายไตรมาส</option>
+                        <option value="yearly">รายปี</option>
                     </select>
                 </div>
-            )}
 
-            {timeRange === 'quarterly' && (
-                <div style={{ marginBottom: '20px' }}>
-                    <label htmlFor="quarter">เลือกไตรมาส: </label>
-                    <select id="quarter" value={selectedQuarter} onChange={handleQuarterChange}>
-                        <option value={1}>ไตรมาสที่ 1</option>
-                        <option value={2}>ไตรมาสที่ 2</option>
-                        <option value={3}>ไตรมาสที่ 3</option>
-                        <option value={4}>ไตรมาสที่ 4</option>
-                    </select>
-                </div>
-            )}
-
-            <div style={{ marginBottom: '20px' }}>
-                <label htmlFor="year">เลือกปี: </label>
-                <select id="year" value={selectedYear} onChange={handleYearChange}>
-                {Array.from({ length: 5 }, (_, i) => {
-                    const yearCE = new Date().getFullYear() - i; // ปี ค.ศ.
-                    const yearBE = yearCE + 543; // ปี พ.ศ.
-                    return (
-                        <option key={i} value={yearCE}>
-                            {yearBE} {/* แสดงปี พ.ศ. */}
-                        </option>
-                    );
-                })}
-                </select>
-            </div>
-
-            <div className="metrics-container" style={{ marginBottom: '20px' }}>
-                <div style={{ marginBottom: '10px' }}>
-                    <strong>เวลาเข้างานทั้งหมด:</strong> {`${metric.totalActualMinutes || 0} / ${metric.totalRequiredMinutes || 0} นาที`}
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                    <strong>นอกสถานที่:</strong> {`${metric.totalOffsiteMinutes || 0} / ${metric.totalRequiredMinutes || 0} นาที`}
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                    <strong>สาย-ออกก่อนเวลา:</strong> {`${metric.totalLateDays || 0} / ${metric.totalWorkingDays || 0} วัน`}
-                    {selectedEmployee === "" && (
-                        <p>พนักงานที่มาสายในเดือนนี้: {lateEmployeesCount} คน</p>
+                <div className="dropdown-group">
+                    {(timeRange === 'monthly' || timeRange === 'quarterly') && (
+                        <div className="dropdown-item">
+                        <label htmlFor={timeRange === 'monthly' ? 'month' : 'quarter'}>
+                            {timeRange === 'monthly' ? 'เลือกเดือน:' : 'เลือกไตรมาส:'}
+                        </label>
+                        <select
+                            id={timeRange === 'monthly' ? 'month' : 'quarter'}
+                            value={timeRange === 'monthly' ? selectedMonth : selectedQuarter}
+                            onChange={timeRange === 'monthly' ? handleMonthChange : handleQuarterChange}
+                            style={{
+                                width: '150px',
+                                height: '40px',
+                                padding: '5px 10px',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                backgroundColor: '#fff',
+                                appearance: 'none', // ซ่อนลูกศรเริ่มต้นของเบราว์เซอร์
+                                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")",
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 10px center',
+                                backgroundSize: '16px'
+                            }}
+                        >
+                            {timeRange === 'monthly'
+                            ? Array.from({ length: 12 }, (_, i) => (
+                                <option key={i + 1} value={i + 1}>
+                                    {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                                </option>
+                                ))
+                            : [1, 2, 3, 4].map((q) => (
+                                <option key={q} value={q}>
+                                    ไตรมาสที่ {q}
+                                </option>
+                                ))}
+                        </select>
+                        </div>
                     )}
+
+                    <div className="dropdown-item">
+                        <label htmlFor="year">เลือกปี: </label>
+                        <select
+                            id="year"
+                            value={selectedYear}
+                            onChange={handleYearChange}
+                            style={{
+                                width: '150px',
+                                height: '40px',
+                                padding: '5px 10px',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                backgroundColor: '#fff',
+                                appearance: 'none', // ซ่อนลูกศรเริ่มต้นของเบราว์เซอร์
+                                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")",
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 10px center',
+                                backgroundSize: '16px'
+                            }}
+                        >
+                        {Array.from({ length: 5 }, (_, i) => {
+                            const yearCE = new Date().getFullYear() - i; // ปี ค.ศ.
+                            const yearBE = yearCE + 543; // ปี พ.ศ.
+                            return (
+                                <option key={i} value={yearCE}>
+                                    {yearBE} {/* แสดงปี พ.ศ. */}
+                                </option>
+                            );
+                        })}
+                        </select>
+                    </div>
                 </div>
             </div>
 
-            {/* Commented out VictoryPie components */}
-            
             <div className="pie-chart-container">
                 <div className="pie-chart-wrapper" style={{ display: "flex", gap: "20px" }}>
                     <div style={{ position: "relative", width: 200, height: 200 }}>
@@ -898,6 +946,21 @@ function Dashboard({ role }) {
                 </div>
             </div>
            
+
+            <div className="metrics-container" style={{ marginTop: '20px', marginBottom: '20px' }}>
+                <div style={{ marginBottom: '10px' }}>
+                    <strong>เวลาเข้างานทั้งหมด:</strong> {`${metric.totalActualMinutes || 0} / ${metric.totalRequiredMinutes || 0} นาที`}
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                    <strong>นอกสถานที่:</strong> {`${metric.totalOffsiteMinutes || 0} / ${metric.totalRequiredMinutes || 0} นาที`}
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                    <strong>สาย-ออกก่อนเวลา:</strong> {`${metric.totalLateDays || 0} / ${metric.totalWorkingDays || 0} วัน`}
+                    {selectedEmployee === "" && (
+                        <p>พนักงานที่มาสายในเดือนนี้: {lateEmployeesCount} คน</p>
+                    )}
+                </div>
+            </div>
 
             <p></p>
         
